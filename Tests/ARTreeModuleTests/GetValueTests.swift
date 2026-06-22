@@ -1,3 +1,4 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
@@ -11,14 +12,13 @@ fileprivate func randomByteArray(minSize: Int,
   return result
 }
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class ARTreeGetValueTests: CollectionTestCase {
-  func testGetValueNil() throws {
+  @Test func testGetValueNil() throws {
     let t = ARTree<[UInt8]>()
     expectEqual(t.getValue(key: [10, 20, 30]), nil)
   }
 
-  func testGetValueBasic() throws {
+  @Test func testGetValueBasic() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [10, 20, 30], value: [11, 21, 31])
     t.insert(key: [11, 21, 31], value: [12, 22, 32])
@@ -96,7 +96,7 @@ final class ARTreeGetValueTests: CollectionTestCase {
     }
   }
 
-  func testGetKeyValue() throws {
+  @Test func testGetKeyValue() throws {
     try _testCommon(
       reps: 100,
       numKv: 10000,

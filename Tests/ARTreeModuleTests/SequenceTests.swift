@@ -1,9 +1,9 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class ARTreeSequenceTests: CollectionTestCase {
-  func testSequenceEmpty() throws {
+  @Test func testSequenceEmpty() throws {
     let t = ARTree<[UInt8]>()
     var total = 0
     for (_, _) in t {
@@ -12,7 +12,7 @@ final class ARTreeSequenceTests: CollectionTestCase {
     expectEqual(total, 0)
   }
 
-  func testSequenceBasic() throws {
+  @Test func testSequenceBasic() throws {
     let sizes = [3, 12, 30, 70]
     for size in sizes {
       print("With \(size) nodes")

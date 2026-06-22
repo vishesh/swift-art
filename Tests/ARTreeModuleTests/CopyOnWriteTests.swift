@@ -1,3 +1,4 @@
+import Testing
 #if COLLECTIONS_SINGLE_MODULE
 import Collections
 #else
@@ -7,9 +8,8 @@ import _CollectionsTestSupport
 
 @testable import ARTreeModule
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class ARTreeCopyOnWriteTests: CollectionTestCase {
-  func testCopyOnWriteBasicInsert() throws {
+  @Test func testCopyOnWriteBasicInsert() throws {
     var t1 = ARTree<Int>()
     _ = t1.insert(key: [10, 20], value: 10)
     _ = t1.insert(key: [20, 30], value: 20)
@@ -31,7 +31,7 @@ final class ARTreeCopyOnWriteTests: CollectionTestCase {
       "└──○ 40: 2[40, 50] -> 40")
   }
 
-  func testCopyOnWriteBasicDelete() throws {
+  @Test func testCopyOnWriteBasicDelete() throws {
     var t1 = ARTree<Int>()
     _ = t1.insert(key: [10, 20], value: 10)
     _ = t1.insert(key: [20, 30], value: 20)
@@ -62,7 +62,7 @@ final class ARTreeCopyOnWriteTests: CollectionTestCase {
       "└──○ 40: 2[40, 50] -> 40")
   }
 
-  func testCopyOnWriteSharedPrefixInsert() throws {
+  @Test func testCopyOnWriteSharedPrefixInsert() throws {
     var t1 = ARTree<Int>()
     _ = t1.insert(key: [1, 2, 3, 4, 5], value: 1)
     _ = t1.insert(key: [2, 3, 4, 5, 6], value: 2)
@@ -168,7 +168,7 @@ final class ARTreeCopyOnWriteTests: CollectionTestCase {
     expectEqual(t3.description, t3_descp)
   }
 
-  func testCopyOnWriteReplaceValue() throws {
+  @Test func testCopyOnWriteReplaceValue() throws {
     var t1 = ARTree<Int>()
     let testCases: [[UInt8]] = [
       [1, 2, 3, 4, 5],

@@ -1,9 +1,9 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class ARTreeNode16Tests: CollectionTestCase {
-  func test16Basic() throws {
+  @Test func test16Basic() throws {
     typealias T = Tree<[UInt8]>
     var node = T.N16.allocate()
     _ = node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: [0]))
@@ -15,7 +15,7 @@ final class ARTreeNode16Tests: CollectionTestCase {
       "└──○ 20: 1[20] -> [3]")
   }
 
-  func test4AddInMiddle() throws {
+  @Test func test4AddInMiddle() throws {
     typealias T = Tree<[UInt8]>
     var node = T.N16.allocate()
     _ = node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: [1]))
@@ -31,7 +31,7 @@ final class ARTreeNode16Tests: CollectionTestCase {
       "└──○ 30: 1[30] -> [3]")
   }
 
-  func test16DeleteAtIndex() throws {
+  @Test func test16DeleteAtIndex() throws {
     typealias T = Tree<[UInt8]>
     var node = T.N16.allocate()
     _ = node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: [1]))
@@ -58,7 +58,7 @@ final class ARTreeNode16Tests: CollectionTestCase {
     expectEqual(node.print(), "○ Node16 {childs=0, partial=[]}\n")
   }
 
-  func test16DeleteKey() throws {
+  @Test func test16DeleteKey() throws {
     typealias T = Tree<[UInt8]>
     var node = T.N16.allocate()
     _ = node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: [1]))
@@ -85,7 +85,7 @@ final class ARTreeNode16Tests: CollectionTestCase {
     expectEqual(node.print(), "○ Node16 {childs=0, partial=[]}\n")
   }
 
-  func test16ExpandTo48AndThenShrinkTo4() throws {
+  @Test func test16ExpandTo48AndThenShrinkTo4() throws {
     typealias T = Tree<Int>
     var node = T.N16.allocate()
     for ii: UInt8 in 0...15 {

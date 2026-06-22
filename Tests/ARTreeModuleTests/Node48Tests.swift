@@ -1,12 +1,12 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class ARTreeNode48Tests: CollectionTestCase {
   typealias Leaf = NodeLeaf<DefaultSpec<[UInt8]>>
   typealias N48 = Node48<DefaultSpec<[UInt8]>>
 
-  func test48Basic() throws {
+  @Test func test48Basic() throws {
     var node = N48.allocate()
     _ = node.addChild(forKey: 10, node: Leaf.allocate(key: [10], value: [1]))
     _ = node.addChild(forKey: 20, node: Leaf.allocate(key: [20], value: [2]))
@@ -17,7 +17,7 @@ final class ARTreeNode48Tests: CollectionTestCase {
       "└──○ 20: 1[20] -> [2]")
   }
 
-  func test48DeleteAtIndex() throws {
+  @Test func test48DeleteAtIndex() throws {
     var node = N48.allocate()
     _ = node.addChild(forKey: 10, node: Leaf.allocate(key: [10], value: [1]))
     _ = node.addChild(forKey: 15, node: Leaf.allocate(key: [15], value: [2]))

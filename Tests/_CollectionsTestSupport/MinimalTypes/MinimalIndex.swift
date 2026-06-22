@@ -12,7 +12,6 @@
 
 // Loosely adapted from https://github.com/apple/swift/tree/main/stdlib/private/StdlibUnittest
 
-import XCTest
 
 public struct MinimalIndex {
   internal let _state: _CollectionState

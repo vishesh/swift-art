@@ -19,11 +19,9 @@
 /// structures. The easiest way to produce instances is to use the
 /// `withLifetimeTracking` function:
 ///
-///      class FooTests: XCTestCase {
-///        func testFoo() {
-///          withLifetimeTracking([1, 2, 3]) { instances in
-///            _ = instances.sorted(by: >)
-///          }
+///      @Test func foo() {
+///        withLifetimeTracking([1, 2, 3]) { instances in
+///          _ = instances.sorted(by: >)
 ///        }
 ///      }
 public class LifetimeTracked<Payload> {

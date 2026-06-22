@@ -1,17 +1,10 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
+@Suite(.checksUniquePath)
 final class ARTreeDeleteTests: CollectionTestCase {
-  override func setUp() {
-    Const.testCheckUnique = true
-  }
-
-  override func tearDown() {
-    Const.testCheckUnique = false
-  }
-
-  func testDeleteBasic() throws {
+  @Test func testDeleteBasic() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [10, 20, 30], value: [11, 21, 31])
     t.insert(key: [11, 21, 31], value: [12, 22, 32])
@@ -24,7 +17,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
       "└──○ 12: 3[12, 22, 32] -> [13, 23, 33]")
   }
 
-  func testDeleteAll() throws {
+  @Test func testDeleteAll() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [10, 20, 30], value: [11, 21, 31])
     t.insert(key: [11, 21, 31], value: [12, 22, 32])
@@ -35,7 +28,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
     expectEqual(t.description, "<>")
   }
 
-  func testDeleteNested1() throws {
+  @Test func testDeleteNested1() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [1, 2, 3], value: [1])
     t.insert(key: [4, 5, 6], value: [2])
@@ -52,7 +45,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
     expectEqual(t.description, "<>")
   }
 
-  func testDeleteNested2() throws {
+  @Test func testDeleteNested2() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [1, 2, 3, 4, 5, 6], value: [1])
     t.insert(key: [4, 5, 6, 7, 8, 9], value: [2])
@@ -71,7 +64,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
       "└──○ 4: 6[4, 5, 6, 7, 8, 9] -> [2]")
   }
 
-  func testDeleteNonExistWithCommonPrefix() throws {
+  @Test func testDeleteNonExistWithCommonPrefix() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [1, 2, 3, 4, 5, 6], value: [1])
     t.insert(key: [4, 5, 6, 7, 8, 9], value: [2])
@@ -83,7 +76,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
       "└──○ 4: 6[4, 5, 6, 7, 8, 9] -> [2]")
   }
 
-  func testDeleteCompressToLeafThenDeleteAllThenInsert() throws {
+  @Test func testDeleteCompressToLeafThenDeleteAllThenInsert() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [1, 2, 3, 4, 5, 6], value: [1])
     t.insert(key: [4, 5, 6, 7, 8, 9], value: [2])
@@ -108,7 +101,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
                                   "└──○ 1: 6[1, 2, 3, 4, 5, 6] -> [1]")
   }
 
-  func testMultiLevelTreeDeleteAll() throws {
+  @Test func testMultiLevelTreeDeleteAll() throws {
     var t1 = ARTree<Int>()
     _ = t1.insert(key: [2, 3, 5, 5, 6], value: 8)
     _ = t1.insert(key: [4, 5, 6, 7, 8], value: 4)
@@ -122,7 +115,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
     expectEqual(t1.description, "<>")
   }
 
-  func testDeleteCompressToNode4() throws {
+  @Test func testDeleteCompressToNode4() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [1, 2, 3, 4, 5], value: [1])
     t.insert(key: [2, 3, 4, 5, 5], value: [2])
@@ -147,7 +140,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
       "└──○ 5: 5[5, 6, 7, 8, 9] -> [5]")
   }
 
-  func testDeleteCompressToNode16() throws {
+  @Test func testDeleteCompressToNode16() throws {
     var t = ARTree<[UInt8]>()
     for i: UInt8 in 0...16 {
       t.insert(key: [i, i + 1], value: [i])
@@ -193,7 +186,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
       "└──○ 16: 2[16, 17] -> [16]")
   }
 
-  func testDeleteCompressToNode48() throws {
+  @Test func testDeleteCompressToNode48() throws {
     var t = ARTree<[UInt8]>()
     for i: UInt8 in 0...48 {
       t.insert(key: [i, i + 1], value: [i])
@@ -252,7 +245,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
 
   // Collapsing a prefixed node must keep its prefix: merged = [2] + 3 + [10].
   // Bug dropped [2], yielding partial=[3, 10] and losing the surviving keys.
-  func testDeleteCompressPreservesParentPrefix() throws {
+  @Test func testDeleteCompressPreservesParentPrefix() throws {
     var t = ARTree<Int>()
     t.insert(key: [1, 2, 3, 10, 20], value: 1)
     t.insert(key: [1, 2, 3, 10, 30], value: 2)
@@ -274,7 +267,7 @@ final class ARTreeDeleteTests: CollectionTestCase {
 
   // Deleting an absent key must not remove a present one. [1,2,5,4,5] (absent)
   // previously navigated onto and deleted [1,2,3,4,5].
-  func testDeleteAbsentKeyDoesNotRemovePresentKey() throws {
+  @Test func testDeleteAbsentKeyDoesNotRemovePresentKey() throws {
     var t = ARTree<Int>()
     t.insert(key: [1, 2, 3, 4, 5], value: 1)
     t.insert(key: [1, 2, 3, 4, 6], value: 2)

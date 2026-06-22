@@ -1,3 +1,4 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
@@ -10,7 +11,6 @@ struct Tree<Value> {
   typealias N256 = Node256<Spec>
 }
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension NodeStorage where Mn: InternalNode {
   mutating func addChildReturn(forKey k: KeyPart,
                                node: NodeStorage<some ARTNode<Mn.Spec>>) -> RawNode? {
@@ -33,9 +33,8 @@ extension NodeStorage where Mn: InternalNode {
   }
 }
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class ARTreeNode4Tests: CollectionTestCase {
-  func test4Basic() throws {
+  @Test func test4Basic() throws {
     typealias T = Tree<[UInt8]>
     var node = T.N4.allocate()
     _ = node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: [11]))
@@ -47,7 +46,7 @@ final class ARTreeNode4Tests: CollectionTestCase {
       "└──○ 20: 1[20] -> [22]")
   }
 
-  func test4BasicInt() throws {
+  @Test func test4BasicInt() throws {
     typealias T = Tree<Int>
     var node = T.N4.allocate()
     _ = node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: 11))
@@ -59,7 +58,7 @@ final class ARTreeNode4Tests: CollectionTestCase {
       "└──○ 20: 1[20] -> 22")
   }
 
-  func test4AddInMiddle() throws {
+  @Test func test4AddInMiddle() throws {
     typealias T = Tree<[UInt8]>
     var node = T.N4.allocate()
     _ = node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: [1]))
@@ -83,7 +82,7 @@ final class ARTreeNode4Tests: CollectionTestCase {
   //   node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: [2]))
   // }
 
-  func test4DeleteAtIndex() throws {
+  @Test func test4DeleteAtIndex() throws {
     typealias T = Tree<[UInt8]>
     var node = T.N4.allocate()
     _ = node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: [1]))
@@ -106,7 +105,7 @@ final class ARTreeNode4Tests: CollectionTestCase {
     expectEqual(newNode?.type, .leaf)
   }
 
-  func test4DeleteFromFull() throws {
+  @Test func test4DeleteFromFull() throws {
     typealias T = Tree<Int>
     var node = T.N4.allocate()
     _ = node.addChild(forKey: 1, node: T.Leaf.allocate(key: [1], value: 1))
@@ -134,7 +133,7 @@ final class ARTreeNode4Tests: CollectionTestCase {
     expectEqual(newNode?.type, .leaf)
   }
 
-  func test4ExpandTo16ThenShrinkTo4() throws {
+  @Test func test4ExpandTo16ThenShrinkTo4() throws {
     typealias T = Tree<[UInt8]>
     var node = T.N4.allocate()
     _ = node.addChild(forKey: 1, node: T.Leaf.allocate(key: [1], value: [1]))
@@ -169,7 +168,7 @@ final class ARTreeNode4Tests: CollectionTestCase {
     }
   }
 
-  func test4DeleteKey() throws {
+  @Test func test4DeleteKey() throws {
     typealias T = Tree<[UInt8]>
     var node = T.N4.allocate()
     _ = node.addChild(forKey: 10, node: T.Leaf.allocate(key: [10], value: [1]))

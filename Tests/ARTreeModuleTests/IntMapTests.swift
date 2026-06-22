@@ -1,3 +1,4 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
@@ -18,7 +19,6 @@ fileprivate func randomInts<T: FixedWidthInteger>(size: Int,
   }
 }
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class IntMapTests: CollectionTestCase {
   func _testCommon<T: FixedWidthInteger & ConvertibleToBinaryComparableBytes>(size: Int,
                                          unique: Bool,
@@ -66,42 +66,42 @@ final class IntMapTests: CollectionTestCase {
     expectEqual(total, m.count)
   }
 
-  func testUnsignedIntUniqueSmall() throws {
+  @Test func testUnsignedIntUniqueSmall() throws {
     try _testCommon(size: 100,
                     unique: true,
                     min: 0 as UInt,
                     max: 1_000 as UInt)
   }
 
-  func testUnsignedIntUniqueLarge() throws {
+  @Test func testUnsignedIntUniqueLarge() throws {
     try _testCommon(size: 100_000,
                     unique: true,
                     min: 0 as UInt,
                     max: 1 << 50 as UInt)
   }
 
-  func testUnsignedIntWithDuplicatesSmallSet() throws {
+  @Test func testUnsignedIntWithDuplicatesSmallSet() throws {
     try _testCommon(size: 100,
                     unique: false,
                     min: 0 as UInt,
                     max: 50 as UInt)
   }
 
-  func testUnsignedInt32WithDuplicatesSmallSet() throws {
+  @Test func testUnsignedInt32WithDuplicatesSmallSet() throws {
     try _testCommon(size: 100,
                     unique: false,
                     min: 0 as UInt32,
                     max: 50 as UInt32)
   }
 
-  func testUnsignedIntWithDuplicatesLargeSet() throws {
+  @Test func testUnsignedIntWithDuplicatesLargeSet() throws {
     try _testCommon(size: 1_000_000,
                     unique: false,
                     min: 0 as UInt,
                     max: 100_000 as UInt)
   }
 
-  func testSignedIntUniqueSmall() throws {
+  @Test func testSignedIntUniqueSmall() throws {
     try _testCommon(size: 100,
                     unique: true,
                     min: -100 as Int,
@@ -109,7 +109,7 @@ final class IntMapTests: CollectionTestCase {
                     debug: false)
   }
 
-  func testSignedIntUniqueLarge() throws {
+  @Test func testSignedIntUniqueLarge() throws {
     try _testCommon(size: 1_000_000,
                     unique: true,
                     min: -100_000_000 as Int,

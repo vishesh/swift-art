@@ -1,8 +1,9 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
 final class ARTreeNodeBasicTests: CollectionTestCase {
-  func testNodeSizes() throws {
+  @Test func testNodeSizes() throws {
     let header = MemoryLayout<InternalNodeHeader>.stride
     expectEqual(header, 12)
 

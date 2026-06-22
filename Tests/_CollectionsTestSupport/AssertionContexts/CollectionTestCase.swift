@@ -10,35 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
-
-open class CollectionTestCase: XCTestCase {
-  internal var _context: TestContext?
-
-  public var context: TestContext { _context! }
-
-  open var isAvailable: Bool { true }
-
-  #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
-  open override func invokeTest() {
-    guard isAvailable else {
-      print("\(Self.self) unavailable; skipping")
-      return
-    }
-    return super.invokeTest()
-  }
-  #endif
-
-  open override func setUp() {
-    super.setUp()
-    _context = TestContext.pushNew()
-  }
-
-  open override func tearDown() {
-    if let context = _context {
-      TestContext.pop(context)
-      _context = nil
-    }
-    super.tearDown()
-  }
+open class CollectionTestCase {
+  public init() {}
 }

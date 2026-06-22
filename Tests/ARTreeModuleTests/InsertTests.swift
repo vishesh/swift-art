@@ -1,17 +1,10 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
+@Suite(.checksUniquePath)
 final class ARTreeInsertTests: CollectionTestCase {
-  override func setUp() {
-    Const.testCheckUnique = true
-  }
-
-  override func tearDown() {
-    Const.testCheckUnique = false
-  }
-
-  func testInsertBasic() throws {
+  @Test func testInsertBasic() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [10, 20, 30], value: [11, 21, 31])
     t.insert(key: [11, 21, 31], value: [12, 22, 32])
@@ -24,7 +17,7 @@ final class ARTreeInsertTests: CollectionTestCase {
       "└──○ 12: 3[12, 22, 32] -> [13, 23, 33]")
   }
 
-  func testInsertDeleteInsertOnEmptyTree() throws {
+  @Test func testInsertDeleteInsertOnEmptyTree() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [10, 20, 30], value: [1])
     t.delete(key: [10, 20, 30])
@@ -48,7 +41,7 @@ final class ARTreeInsertTests: CollectionTestCase {
         "└──○ 11: 3[11, 21, 31] -> [2]")
   }
 
-  func testInsertSharedPrefix() throws {
+  @Test func testInsertSharedPrefix() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [10, 20, 30], value: [11, 21, 31])
     t.insert(key: [11, 21, 31], value: [12, 22, 32])
@@ -64,7 +57,7 @@ final class ARTreeInsertTests: CollectionTestCase {
       "└──○ 12: 3[12, 22, 32] -> [13, 23, 33]")
   }
 
-  func testInsertExpandTo16() throws {
+  @Test func testInsertExpandTo16() throws {
     var t = ARTree<[UInt8]>()
     t.insert(key: [1], value: [1])
     t.insert(key: [2], value: [2])
@@ -88,7 +81,7 @@ final class ARTreeInsertTests: CollectionTestCase {
       "└──○ 5: 1[5] -> [5]")
   }
 
-  func testInsertExpandTo48() throws {
+  @Test func testInsertExpandTo48() throws {
     typealias T = ARTree<[UInt8]>
     var t = T()
     for ii: UInt8 in 0..<40 {
@@ -151,7 +144,7 @@ final class ARTreeInsertTests: CollectionTestCase {
       "└──○ 40: 1[40] -> [40]")
   }
 
-  func testInsertExpandTo256() throws {
+  @Test func testInsertExpandTo256() throws {
     typealias T = ARTree<[UInt8]>
     var t = T()
     for ii: UInt8 in 0..<70 {
@@ -282,7 +275,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     }
   }
 
-  func testInsertPrefixSharedSmall() throws {
+  @Test func testInsertPrefixSharedSmall() throws {
     let items: [[UInt8]] = [
       [1, 2, 3, 4, 5],
       [1, 2, 3, 4, 6],
@@ -292,7 +285,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node4)
   }
 
-  func testInsertPrefixLongOnNodePrefixFull() throws {
+  @Test func testInsertPrefixLongOnNodePrefixFull() throws {
     let items: [[UInt8]] = [
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 11],
@@ -302,7 +295,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node4)
   }
 
-  func testInsertPrefixLongMultiLayer1() throws {
+  @Test func testInsertPrefixLongMultiLayer1() throws {
     let items: [[UInt8]] = [
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16],
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17],
@@ -312,7 +305,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node4)
   }
 
-  func testInsertPrefixLongMultiLayer2() throws {
+  @Test func testInsertPrefixLongMultiLayer2() throws {
     let items: [[UInt8]] = [
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16],
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 11, 12, 13, 14, 17],
@@ -322,7 +315,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node4)
   }
 
-  func testInsertPrefixLongMultiLayer3() throws {
+  @Test func testInsertPrefixLongMultiLayer3() throws {
     var items: [[UInt8]] = [
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22],
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 23],
@@ -352,7 +345,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     }
   }
 
-  func testInsertPrefixLongMultiLayer5() throws {
+  @Test func testInsertPrefixLongMultiLayer5() throws {
     let items: [[UInt8]] = [
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 99, 13, 14, 15, 17, 18, 19, 66, 21, 22, 77, 24, 25, 26, 27],
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 88, 13, 14, 15, 17, 18, 19, 55, 21, 22, 66, 24, 25, 26, 27],
@@ -362,7 +355,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node4)
   }
 
-  func testInsertAndGetSmallSetRepeat48() throws {
+  @Test func testInsertAndGetSmallSetRepeat48() throws {
     let items: [([UInt8], [UInt8])] = [
       ([15, 118, 236, 37], [184, 222, 84, 178, 8, 42, 238, 20]),
       ([45, 142, 131, 183, 171, 108, 168], [153, 208, 8, 76, 71, 219]),
@@ -379,7 +372,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node16, reps: 100)
   }
 
-  func testInsertAndGetSmallSetRepeat256() throws {
+  @Test func testInsertAndGetSmallSetRepeat256() throws {
     let items: [([UInt8], [UInt8])] = [
       ([15, 118, 236, 37], [184, 222, 84, 178, 8, 42, 238, 20]),
       ([15, 45, 142, 131, 183, 171, 108, 168], [153, 208, 8, 76, 71, 219]),
@@ -413,7 +406,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node48, reps: 100)
   }
 
-  func testInsertPrefixSmallLong() throws {
+  @Test func testInsertPrefixSmallLong() throws {
     let items: [([UInt8], [UInt8])] = [
       ([1, 2, 1, 2, 3, 2, 3, 3, 1, 3, 1, 0, 0, 2, 0, 3, 0, 1, 1], [1, 1, 2, 0, 3, 1, 3, 1, 0, 1, 3, 3, 1, 2, 3, 1, 1, 0, 1]),
       ([1, 3, 2, 2, 1, 0, 0, 2, 3, 2, 0], [0, 0, 2, 0, 3, 3, 0, 3, 3, 0, 2, 3, 3, 1, 2, 3, 2]),
@@ -426,7 +419,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node16)
   }
 
-  func testInsertPrefixSmall2() throws {
+  @Test func testInsertPrefixSmall2() throws {
     let items: [([UInt8], [UInt8])] = [
       ([3, 1, 3, 1, 1, 2, 0], [2, 4, 0]),
       ([2, 4, 4, 0], [4, 1, 0]),
@@ -442,7 +435,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node16)
   }
 
-  func testInsertLongSharedPrefix1() throws {
+  @Test func testInsertLongSharedPrefix1() throws {
     let items: [([UInt8], [UInt8])] = [
       ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], [1]),
       ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19], [2]),
@@ -451,7 +444,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node4)
   }
 
-  func testInsertLongSharedPrefix2() throws {
+  @Test func testInsertLongSharedPrefix2() throws {
     let items: [([UInt8], [UInt8])] = [
       ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], [1]),
       ([1, 4, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], [4]),
@@ -462,7 +455,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node4)
   }
 
-  func testInsertLongSharedPrefix3() throws {
+  @Test func testInsertLongSharedPrefix3() throws {
     let items: [([UInt8], [UInt8])] = [
       ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], [1]),
       ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19], [2]),
@@ -472,7 +465,7 @@ final class ARTreeInsertTests: CollectionTestCase {
     try _testCommon(items, expectedRootType: .node4)
   }
 
-  func testReplace() throws {
+  @Test func testReplace() throws {
     var t = ARTree<Int>()
     let items: [[UInt8]] = [
       [11, 21, 31],

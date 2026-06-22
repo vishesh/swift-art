@@ -14,7 +14,6 @@
 
 // FIXME: Port all of the collection validation tests from the Swift compiler codebase.
 
-import XCTest
 
 // FIXME: Port the collection validation tests from the Swift compiler codebase.
 

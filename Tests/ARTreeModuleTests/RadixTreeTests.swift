@@ -1,9 +1,9 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class RadixTreeCollectionTests: CollectionTestCase {
-  func testDictionaryLiteral() throws {
+  @Test func testDictionaryLiteral() throws {
     let d: RadixTree<String, Int> = [
       "a": 0,
       "b": 1,
@@ -24,7 +24,7 @@ final class RadixTreeCollectionTests: CollectionTestCase {
     expectEqual(count, 3)
   }
 
-  func testSubscript() throws {
+  @Test func testSubscript() throws {
     var d: RadixTree<String, Int> = [:]
     d["a"] = 0
     d["b"] = 1
@@ -44,7 +44,7 @@ final class RadixTreeCollectionTests: CollectionTestCase {
     expectEqual(count, 3)
   }
 
-  func testEmptyIteration() throws {
+  @Test func testEmptyIteration() throws {
     var d: RadixTree<String, Int> = [:]
     var count = 0
     for (k, v) in d {
@@ -67,7 +67,7 @@ final class RadixTreeCollectionTests: CollectionTestCase {
   }
 
   // Removing "aaQzz" collapses a prefixed node; must not lose "aaXmp"/"aaXmq".
-  func testRemoveValueDoesNotLoseUnrelatedKeys() throws {
+  @Test func testRemoveValueDoesNotLoseUnrelatedKeys() throws {
     var t = RadixTree<String, Int>()
     t.updateValue(1, forKey: "aaXmp")
     t.updateValue(2, forKey: "aaXmq")

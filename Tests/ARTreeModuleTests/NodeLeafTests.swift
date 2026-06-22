@@ -1,9 +1,9 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class ARTreeNodeLeafTests: CollectionTestCase {
-  func testLeafBasic() throws {
+  @Test func testLeafBasic() throws {
     typealias L = NodeLeaf<DefaultSpec<[UInt8]>>
     let leaf1 = L.allocate(key: [10, 20, 30, 40], value: [0])
     expectEqual(leaf1.print(), "○ 4[10, 20, 30, 40] -> [0]")
@@ -15,7 +15,7 @@ final class ARTreeNodeLeafTests: CollectionTestCase {
     expectEqual(leaf3.print(), "○ 0[] -> []")
   }
 
-  func testLeafKeyEquals() throws {
+  @Test func testLeafKeyEquals() throws {
     typealias L = NodeLeaf<DefaultSpec<[Int]>>
     let leaf1 = L.allocate(key: [10, 20, 30, 40], value: [0])
     expectFalse(leaf1.node.keyEquals(with: [10, 20, 30, 50]))
@@ -24,14 +24,14 @@ final class ARTreeNodeLeafTests: CollectionTestCase {
     expectTrue(leaf1.node.keyEquals(with: [10, 20, 30, 40]))
   }
 
-  func testCasts() throws {
+  @Test func testCasts() throws {
     typealias L = NodeLeaf<DefaultSpec<[Int]>>
     let leaf = L.allocate(key: [10, 20, 30, 40], value: [0])
     expectEqual(leaf.node.key, [10, 20, 30, 40])
     expectEqual(leaf.node.value, [0])
   }
 
-  func testLeafLcp() throws {
+  @Test func testLeafLcp() throws {
     typealias L = NodeLeaf<DefaultSpec<[Int]>>
     var leaf1 = L.allocate(key: [10, 20, 30, 40], value: [0, 1, 2])
     L.allocate(key: [0, 1, 2, 3], value: [0]).read { other in

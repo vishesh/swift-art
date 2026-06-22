@@ -9,7 +9,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+import Testing
 
 public final class TestContext {
   internal var _nextStateId = 0
@@ -20,7 +20,7 @@ public final class TestContext {
   internal var _trace: [Entry] = []
 
   // FIXME: This ought to be a thread-local variable.
-  internal static var _current: TestContext?
+  nonisolated(unsafe) internal static var _current: TestContext?
 
   public init() {}
 }
@@ -211,7 +211,10 @@ extension TestContext {
     file: StaticString = #file,
     line: UInt = #line
   ) {
-    XCTFail(message, file: file, line: line)
+    Issue.record(
+      Comment(rawValue: message),
+      sourceLocation: SourceLocation(
+        fileID: "\(file)", filePath: "\(file)", line: Int(line), column: 1))
   }
 
   /// Call this function to emit a test failure when the current test trace matches

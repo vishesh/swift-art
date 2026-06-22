@@ -1,3 +1,4 @@
+import Testing
 import _CollectionsTestSupport
 @testable import ARTreeModule
 
@@ -9,9 +10,8 @@ private class TestBox {
   }
 }
 
-@available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 final class ARTreeRefCountTest: CollectionTestCase {
-  func testRefCountBasic() throws {
+  @Test func testRefCountBasic() throws {
     // TODO: Why is it 2?
     let x = TestBox("foo")
     let rc1 = _getRetainCount(x)
@@ -29,7 +29,7 @@ final class ARTreeRefCountTest: CollectionTestCase {
     expectEqual(_getRetainCount(x), rc1)
   }
 
-  func testRefCountNode4() throws {
+  @Test func testRefCountNode4() throws {
     typealias Tree = ARTree<Int>
     var t: _? = Tree()
     t!.insert(key: [1, 2, 3], value: 10)
@@ -43,7 +43,7 @@ final class ARTreeRefCountTest: CollectionTestCase {
     n4 = nil
   }
 
-  func testRefCountNode16() throws {
+  @Test func testRefCountNode16() throws {
     typealias Tree = ARTree<Int>
     var t: _? = Tree()
     t!.insert(key: [1, 2, 3], value: 10)
@@ -60,7 +60,7 @@ final class ARTreeRefCountTest: CollectionTestCase {
     n4 = nil
   }
 
-  func testRefCountStorage() throws {
+  @Test func testRefCountStorage() throws {
     typealias Tree = ARTree<Int>
     let node = Node4<Tree.Spec>.allocate()
     let ref = node.ref
@@ -81,7 +81,7 @@ final class ARTreeRefCountTest: CollectionTestCase {
     _ = (a, b, c) // FIXME: to suppress warning
   }
 
-  func testRefCountReplace() throws {
+  @Test func testRefCountReplace() throws {
     typealias Tree = ARTree<TestBox>
     var t = Tree()
     var v = TestBox("val1")
@@ -97,7 +97,7 @@ final class ARTreeRefCountTest: CollectionTestCase {
     expectTrue(isKnownUniquelyReferenced(&v))
   }
 
-  func testRefCountNode4ChildAndClone() throws {
+  @Test func testRefCountNode4ChildAndClone() throws {
     typealias Tree = ARTree<Int>
     var node = Node4<Tree.Spec>.allocate()
     var newNode = Node4<Tree.Spec>.allocate()

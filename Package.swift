@@ -1,4 +1,4 @@
-// swift-tools-version:5.6
+// swift-tools-version:6.0
 //===----------------------------------------------------------------------===//
 //
 // This source file is part of the Swift ART open source project
@@ -20,28 +20,19 @@ var _settings: [SwiftSetting] = defines.map { .define($0) }
 
 let package = Package(
   name: "swift-art",
+  platforms: [
+    .macOS("13.3"), .iOS("16.4"), .watchOS("9.4"), .tvOS("16.4"),
+  ],
   products: [
     .library(name: "ARTreeModule", targets: ["ARTreeModule"]),
   ],
   targets: [
-    // Test support library (not a test target — links XCTest explicitly).
-    // unsafeFlags provides XCTest framework + Swift overlay search paths for
-    // command-line builds, where SPM doesn't add them for regular targets.
+    // Test support library (shared assertion helpers, built on swift-testing).
     .target(
       name: "_CollectionsTestSupport",
       dependencies: [],
       path: "Tests/_CollectionsTestSupport",
-      swiftSettings: _settings + [
-        .unsafeFlags(
-          ["-F",
-           "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
-           "-I",
-           "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib"],
-          .when(platforms: [.macOS])),
-      ],
-      linkerSettings: [
-        .linkedFramework("XCTest", .when(platforms: [.macOS, .iOS, .watchOS, .tvOS])),
-      ]),
+      swiftSettings: _settings),
 
     // Adaptive Radix Tree source module.
     .target(

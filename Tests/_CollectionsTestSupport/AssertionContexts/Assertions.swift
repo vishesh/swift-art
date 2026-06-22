@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+import Testing
 
 public func expectFailure(
   _ message: @autoclosure () -> String = "",
@@ -19,9 +19,10 @@ public func expectFailure(
   line: UInt = #line
 ) {
   let message = message()
-  XCTFail(
-    TestContext.currentTrace(message),
-    file: file, line: line)
+  Issue.record(
+    Comment(rawValue: TestContext.currentTrace(message)),
+    sourceLocation: SourceLocation(
+      fileID: "\(file)", filePath: "\(file)", line: Int(line), column: 1))
   if trapping {
     fatalError(message, file: file, line: line)
   }
@@ -35,13 +36,14 @@ public func _expectFailure(
   line: UInt
 ) {
   let message = message()
-  XCTFail(
-    TestContext.currentTrace(
+  Issue.record(
+    Comment(rawValue: TestContext.currentTrace(
       """
       \(diagnostic)
       \(message)
-      """),
-    file: file, line: line)
+      """)),
+    sourceLocation: SourceLocation(
+      fileID: "\(file)", filePath: "\(file)", line: Int(line), column: 1))
   if trapping {
     fatalError(message, file: file, line: line)
   }
