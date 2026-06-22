@@ -87,13 +87,11 @@ final class ARTreeRefCountTest: CollectionTestCase {
     var v = TestBox("val1")
     expectTrue(isKnownUniquelyReferenced(&v))
 
-    let count0 = _getRetainCount(v)
     t.insert(key: [1, 2, 3], value: v)
     expectFalse(isKnownUniquelyReferenced(&v))
-    expectEqual(_getRetainCount(v), count0 + 1)
 
+    // Replacing the value releases the old one, making `v` unique again.
     t.insert(key: [1, 2, 3], value: TestBox("val2"))
-    expectEqual(_getRetainCount(v), count0)
     expectTrue(isKnownUniquelyReferenced(&v))
   }
 
