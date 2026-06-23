@@ -88,6 +88,10 @@ extension NodeLeaf {
 
 extension NodeLeaf {
   func keyEquals(with key: Key, depth: Int = 0) -> Bool {
+    key.withUnsafeBytes { keyEquals(with: $0, depth: depth) }
+  }
+
+  func keyEquals(with key: UnsafeRawBufferPointer, depth: Int = 0) -> Bool {
     if key.count != keyLength {
       return false
     }

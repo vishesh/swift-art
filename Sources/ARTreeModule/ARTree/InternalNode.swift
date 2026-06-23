@@ -101,6 +101,10 @@ extension InternalNode {
 
   // Calculates the index at which prefix mismatches.
   func prefixMismatch(withKey key: Key, fromIndex depth: Int) -> Int {
+    key.withUnsafeBytes { prefixMismatch(withKey: $0, fromIndex: depth) }
+  }
+
+  func prefixMismatch(withKey key: UnsafeRawBufferPointer, fromIndex depth: Int) -> Int {
     assert(partialLength <= Const.maxPartialLength, "partial length is always bounded")
     let maxComp = min(partialLength, key.count - depth)
 

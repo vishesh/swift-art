@@ -32,8 +32,7 @@ extension RadixTree {
   /// - Returns: `nil` if the key was not present. Otherwise, the previous value.
   /// - Complexity: O(`k`) where `k` is size of the key.
   public func getValue(forKey key: Key) -> Value? {
-    let kb = key.toBinaryComparableBytes()
-    return _tree.getValue(key: kb)
+    key.withUnsafeBinaryComparableBytes { _tree.getValue(keyBytes: $0) }
   }
 }
 

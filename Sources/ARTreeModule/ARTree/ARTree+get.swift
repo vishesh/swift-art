@@ -1,6 +1,10 @@
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension ARTreeImpl {
   public func getValue(key: Key) -> Value? {
+    key.withUnsafeBytes { getValue(keyBytes: $0) }
+  }
+
+  public func getValue(keyBytes key: UnsafeRawBufferPointer) -> Value? {
     var current = _root
     var depth = 0
     while depth <= key.count {
