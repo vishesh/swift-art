@@ -54,7 +54,7 @@ extension RawNode {
     case .node256:
       return Node256<Spec>(buffer: buf)
     default:
-      assert(false, "leaf nodes are not internal nodes")
+      preconditionFailure("leaf nodes are not internal nodes")
     }
   }
 

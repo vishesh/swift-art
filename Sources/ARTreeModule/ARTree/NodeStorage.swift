@@ -12,6 +12,11 @@ struct NodeStorage<Mn: ARTNode> {
 }
 
 extension NodeStorage {
+  // Workaround: the StackPromotion SIL pass crashes the optimizer on this
+  // function (Swift 6.3.2). It's just an allocation + zero-fill, so excluding
+  // it from optimization costs ~nothing while keeping the rest of the module
+  // (and the release build) intact.
+  @_optimize(none)
   static func create(type: NodeType, size: Int) -> NodeStorage<Mn> {
     let buf = Mn.Buffer.create(
       minimumCapacity: size,
