@@ -12,9 +12,11 @@ extension ARTreeImpl {
       self.version = tree.version
 
       if let root = tree._root {
-        assert(root.type != .leaf, "root can't be leaf")
-        self.root = tree._root?.buf
-        self.current = tree._root?.toARTNode()
+        // A single-leaf root is possible after deletes collapse the tree. The
+        // Sequence iterator handles it; this index-based path is not yet wired for
+        // a leaf root (no Collection conformance uses it today).
+        self.root = root.buf
+        self.current = root.toARTNode()
       }
     }
   }

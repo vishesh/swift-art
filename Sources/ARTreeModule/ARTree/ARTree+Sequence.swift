@@ -7,13 +7,20 @@ extension ARTreeImpl: Sequence {
 
     private let tree: ARTreeImpl<Spec>
     private var path: [(any InternalNode<Spec>, _ChildIndex)]
+    // Set when the whole tree is a single leaf (deletes can collapse the root to a
+    // bare leaf). Yielded once, then cleared.
+    private var rootLeaf: NodeLeaf<Spec>?
 
     init(tree: ARTreeImpl<Spec>) {
       self.tree = tree
       self.path = []
+      self.rootLeaf = nil
       guard let node = tree._root else { return }
 
-      assert(node.type != .leaf, "root can't be leaf")
+      if node.type == .leaf {
+        self.rootLeaf = node.toLeafNode()
+        return
+      }
       let n: any InternalNode<Spec> = node.toInternalNode()
       if n.count > 0 {
         self.path = [(n, n.startIndex)]
@@ -46,6 +53,11 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
   }
 
   mutating func next() -> Element? {
+    if let leaf = rootLeaf {
+      rootLeaf = nil
+      return (leaf.key, leaf.value)
+    }
+
     while !path.isEmpty {
       while let (node, index) = path.last {
         if index == node.endIndex {

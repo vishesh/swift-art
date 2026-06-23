@@ -41,7 +41,7 @@ extension Node256 {
         }
       }
 
-      Self.retainChildren(newNode.childs, count: Self.numKeys)
+      // Element assignment above already retains each child; no retainChildren.
       assert(newNode.count == 48, "should have exactly 48 childs")
     }
 

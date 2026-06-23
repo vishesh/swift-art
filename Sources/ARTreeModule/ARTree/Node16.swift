@@ -73,7 +73,7 @@ extension Node16 {
       }
 
       assert(slot == newNode.count)
-      Self.retainChildren(newNode.childs, count: newNode.count)
+      // Element assignment above already retains each child; no retainChildren.
     }
 
     return storage
@@ -131,7 +131,9 @@ extension Node16: InternalNode {
 
   mutating func addChild(forKey k: KeyPart, node: RawNode) -> UpdateResult<RawNode?> {
     if let slot = _insertSlot(forKey: k) {
-      assert(count == 0 || keys[slot] != k, "node for key \(k) already exists")
+      // `slot == count` is an append; `keys[slot]` there is unused/stale (removeChild
+      // doesn't clear it), so only check for a real duplicate when slot < count.
+      assert(slot == count || keys[slot] != k, "node for key \(k) already exists")
       keys.shiftRight(startIndex: slot, endIndex: count - 1, by: 1)
       childs.shiftRight(startIndex: slot, endIndex: count - 1, by: 1)
       keys[slot] = k

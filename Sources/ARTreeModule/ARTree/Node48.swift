@@ -77,7 +77,7 @@ extension Node48 {
         slot += 1
       }
 
-      Self.retainChildren(newNode.childs, count: newNode.count)
+      // Element assignment above already retains each child; no retainChildren.
     }
 
     return storage

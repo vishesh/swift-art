@@ -207,15 +207,22 @@ extension InternalNode {
           if newValue.type != .leaf && selfRef.count == 1 {
             assert(selfRef.type == .node4, "only node4 can have count = 1")
             let slf: Node4<Spec> = selfRef as! Node4<Spec>
-            var node: any InternalNode<Spec> = newValue.toInternalNode()
 
             // Merge slf into its single child:
             //   merged prefix = slf.prefix + connectingByte + child.prefix
             let slfLength = slf.partialLength
-            let childLength = node.partialLength
+            let childLength = newValue.toInternalNode(of: Spec.self).partialLength
             let mergedLength = slfLength + 1 + childLength
 
             if mergedLength <= Const.maxPartialLength {
+              // Path compression rewrites the surviving child's prefix in place. That
+              // child is a *sibling* of the deleted node, not on the unique mutation
+              // path, so `isUnique` (which tracks the path) says nothing about it — it
+              // can still be shared with other trees (copies). Always clone it before
+              // mutating, so we never corrupt a shared sibling.
+              let childRaw = newValue.clone(spec: Spec.self)
+              var node: any InternalNode<Spec> = childRaw.toInternalNode()
+
               let slfBytes = slf.partialBytes
               let childBytes = node.partialBytes
               var merged = PartialBytes(repeating: 0)
@@ -228,7 +235,7 @@ extension InternalNode {
               }
               node.partialBytes = merged
               node.partialLength = mergedLength
-              return .replaceWith(newValue)
+              return .replaceWith(childRaw)
             }
 
             // Merged prefix exceeds maxPartialLength; keep slf as a single-child node.

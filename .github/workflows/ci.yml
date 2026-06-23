@@ -21,3 +21,8 @@ jobs:
       - run: swift --version
       - run: swift build --build-tests
       - run: swift test
+      - name: Deterministic simulation soak
+        run: swift test --filter ARTreeSoakTests
+        env:
+          ART_SIM_STEPS: "20000"
+          ART_SIM_SEEDS: "16"
