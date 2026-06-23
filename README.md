@@ -1,16 +1,15 @@
 # swift-art
 
-An Adaptive Radix Tree (ART) implementation in Swift. ART is a trie-based data
-structure that provides ordered key-value storage with efficient lookup,
+An Adaptive Radix Tree (ART)[^art] implementation in Swift. ART is a trie-based
+data structure that provides ordered key-value storage with efficient lookup,
 insertion, and deletion. It uses path compression and lazy expansion to keep
 memory usage low while maintaining performance comparable to hash tables.
 
 ## Requirements
 
-- Swift 5.9+
-- macOS 13.3+ / iOS 16.4+ / watchOS 9.4+ / tvOS 16.4+
+- Swift 6.0+
 
-## Adding as a dependency
+## Usage
 
 In your `Package.swift`:
 
@@ -25,7 +24,7 @@ targets: [
 ]
 ```
 
-## Usage
+### Example
 
 ```swift
 import ARTreeModule
@@ -45,16 +44,23 @@ for (key, value) in dict {
 }
 ```
 
-## Building
+## Development
 
 ```
 swift build
 ```
 
-## Testing
+### Testing
 
 On macOS, Xcode must be installed and selected as the active developer directory:
 
 ```
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ```
+
+## References
+
+[^art]: V. Leis, A. Kemper, and T. Neumann,
+"The Adaptive Radix Tree: ARTful Indexing for Main-Memory Databases,"
+ICDE 2013, pp. 38–49.
+DOI: https://doi.org/10.1109/ICDE.2013.6544812

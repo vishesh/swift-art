@@ -1,15 +1,13 @@
 Adaptive Radix Tree
 ===================
 
-Todo
-----
+## TODO
 
 - Ranged Operations
   - Subsequence Delete
   - Subsequence Iteration
 - Bulk insert
 - Merge operation
-- Disk-backed storage
 - Confirm to Swift Collections protocol
   - Implement non-owning Index/UnsafePath for ARTree
   - Use Index/UnsafePath for sequence implementation
