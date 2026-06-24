@@ -93,8 +93,11 @@ extension ARTreeImpl {
     }
 
     var depth = 0
-    var current: any ARTNode<Spec> = _root!.toARTNode()
+    // Compute the root's uniqueness BEFORE binding `current`: `current` holds a
+    // strong reference to the same buffer, so taking it first would make
+    // isKnownUniquelyReferenced see two refs and report a unique root as shared.
     var isUnique = isKnownUniquelyReferenced(&_root!.buf)
+    var current: RawNode = _root!
     var ref = NodeReference(&_root)
 
     while current.type != .leaf && depth < key.count {
@@ -103,36 +106,33 @@ extension ARTreeImpl {
         "unique path is expected in this test, depth=\(depth)")
 
       if !isUnique {
-        // TODO: Why making this one-liner crashes?
-        let clone = current.rawNode.clone(spec: Spec.self)
-        current = clone.toARTNode()
-        ref.pointee = current.rawNode
+        // Clone the shared node and splice the copy in before mutating it.
+        let clone = current.clone(spec: Spec.self)
+        ref.pointee = clone
+        current = clone
       }
 
-      var node: any InternalNode<Spec> = current.rawNode.toInternalNode()
-      if node.partialLength > 0 {
-        let partialLength = node.partialLength
-        let prefixDiff = node.prefixMismatch(withKey: key, fromIndex: depth)
-        if prefixDiff >= partialLength {
-          // Matched all partial bytes. Continue to next child.
-          depth += partialLength
-        } else {
-          // Incomplete match with partial bytes, hence needs splitting.
-          return (.splitNode(node, depth: depth, prefixDiff: prefixDiff), ref)
-        }
+      // Switch on the concrete node type so the per-hop work specializes instead
+      // of churning through `any InternalNode`/`any ARTNode` boxes each step.
+      let step: _InsertStep
+      switch current.type {
+      case .node4: step = _insertStep(Node4<Spec>(buffer: current.buf), key, &depth, &ref)
+      case .node16: step = _insertStep(Node16<Spec>(buffer: current.buf), key, &depth, &ref)
+      case .node48: step = _insertStep(Node48<Spec>(buffer: current.buf), key, &depth, &ref)
+      case .node256: step = _insertStep(Node256<Spec>(buffer: current.buf), key, &depth, &ref)
+      case .leaf: preconditionFailure("leaf handled by loop condition")
       }
 
-      // Find next child to continue.
-      guard
-        let (next, _isUnique) =
-          (node.maybeReadChild(forKey: key[depth], ref: &ref) { ($0, $1) })
-      else {
-        return (.insertInto(node, depth: depth), ref)
+      switch step {
+      case .splitNode(let prefixDiff):
+        return (.splitNode(current.toInternalNode(), depth: depth, prefixDiff: prefixDiff), ref)
+      case .insertInto:
+        return (.insertInto(current.toInternalNode(), depth: depth), ref)
+      case .descend(let child, let childUnique):
+        depth += 1
+        current = child
+        isUnique = childUnique
       }
-
-      depth += 1
-      current = next
-      isUnique = _isUnique
     }
 
     assert(current.type == .leaf)
@@ -142,7 +142,7 @@ extension ARTreeImpl {
         !Const.testCheckUnique || isUnique,
         "unique path is expected in this test, depth=\(depth)")
 
-      let leaf: NodeLeaf<Spec> = current.rawNode.toLeafNode()
+      let leaf: NodeLeaf<Spec> = current.toLeafNode()
       if leaf.keyEquals(with: key) {
         if isUnique {
           return (.replace(leaf), ref)
@@ -163,6 +163,44 @@ extension ARTreeImpl {
     }
 
     fatalError("unexpected state")
+  }
+
+  // One step down an internal node during insert. Mirrors the descent the loop
+  // used to do through `any InternalNode`, specialized on the concrete node.
+  private enum _InsertStep {
+    case splitNode(prefixDiff: Int)
+    case insertInto
+    case descend(child: RawNode, childUnique: Bool)
+  }
+
+  private func _insertStep<N: InternalNode<Spec>>(
+    _ node: N,
+    _ key: UnsafeRawBufferPointer,
+    _ depth: inout Int,
+    _ ref: inout NodeReference
+  ) -> _InsertStep {
+    var node = node
+    if node.partialLength > 0 {
+      let partialLength = node.partialLength
+      let prefixDiff = node.prefixMismatch(withKey: key, fromIndex: depth)
+      if prefixDiff >= partialLength {
+        depth += partialLength
+      } else {
+        return .splitNode(prefixDiff: prefixDiff)
+      }
+    }
+
+    guard let index = node.index(forKey: key[depth]) else {
+      return .insertInto
+    }
+
+    return node.withChildRef(at: index) { ptr in
+      ref = NodeReference(ptr)
+      // Read uniqueness in place on the slot: copying the child into a local
+      // first would add a second reference and make every node look shared.
+      let childUnique = ptr.pointee!.isUnique
+      return .descend(child: ptr.pointee!, childUnique: childUnique)
+    }
   }
 }
 
