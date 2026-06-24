@@ -1,0 +1,21 @@
+#!/bin/sh
+# Auto-format staged Swift files with swift-format before committing.
+#
+# Enable once per clone:
+#   git config core.hooksPath .githooks
+#
+# Note: re-stages each touched file in full, so avoid committing a partially
+# staged .swift file (stage the whole file, or run ./scripts/format.sh yourself).
+set -eu
+
+# swift-format ships with the Swift 6 toolchain; skip gracefully if unavailable.
+if ! swift format --version >/dev/null 2>&1; then
+  echo "pre-commit: 'swift format' unavailable; skipping." >&2
+  exit 0
+fi
+
+git diff --cached --name-only --diff-filter=ACM -- '*.swift' | while IFS= read -r f; do
+  [ -f "$f" ] || continue
+  swift format --in-place "$f"
+  git add "$f"
+done

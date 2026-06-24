@@ -1,0 +1,34 @@
+name: Format
+
+# Informational only: this workflow reports swift-format issues in a PR's own
+# changes but never fails. Don't add it to branch protection's required checks.
+on:
+  pull_request:
+
+jobs:
+  swift-format:
+    name: swift-format (non-blocking)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Lint changed Swift files
+        continue-on-error: true
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          files=$(git diff --name-only --diff-filter=ACM "$base"...HEAD -- '*.swift')
+          {
+            echo '## swift-format'
+            if [ -z "$files" ]; then
+              echo 'No Swift files changed.'
+            else
+              echo 'Checking changed files:'
+              echo '```'
+              echo "$files" | xargs swift format lint --strict --parallel 2>&1 || true
+              echo '```'
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
