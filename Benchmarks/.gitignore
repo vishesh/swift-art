@@ -1,0 +1,4 @@
+# Generated benchmark outputs — regenerate locally (see README.md).
+/Results/*
+!/Results/.gitkeep
+*.trace

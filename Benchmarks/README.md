@@ -4,6 +4,9 @@ Performance comparison of `RadixTree` against the maps people would realisticall
 reach for. Kept as a **separate package** so the main library product stays
 dependency-free — nothing here is pulled into consumers of `ARTreeModule`.
 
+**Results are not checked in.** Regenerate them locally with the commands below;
+everything under `Results/` and any `*.trace` bundle is gitignored.
+
 ## Contenders
 
 | Map | Source | Category | Role |
@@ -14,73 +17,96 @@ dependency-free — nothing here is pulled into consumers of `ARTreeModule`.
 | `SortedDictionary` | swift-collections (B-tree) | **ordered**, COW | the true ordered-map peer |
 
 `SortedDictionary` lives behind swift-collections' `UnstableSortedCollections`
-package trait (an explicitly-labeled *prototype* — "not ready for production,
-source-breaking API changes before they ship"). This package enables that trait
-by default and pins an exact swift-collections version in `Package.resolved`.
-Treat its numbers as "vs the current prototype B-tree" and re-run when it
-stabilizes.
+trait (an explicitly-labeled prototype). This package enables it by default and
+pins an exact version in `Package.resolved`; treat its numbers as "vs the current
+prototype B-tree."
 
-## Running
+## Setup
 
-Always build in **release** — debug numbers are meaningless.
+Always build in **release** — debug numbers are meaningless. On macOS the Xcode
+toolchain is required (same as the test suite). All commands below run from this
+`Benchmarks/` directory.
 
 ```sh
-# from this directory
+cd Benchmarks
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 swift build -c release
-.build/release/ARTBenchmarks info --tasks          # list the 36 tasks
-.build/release/ARTBenchmarks run results.json --cycles 1
 ```
 
-On macOS the Xcode toolchain is required (same as the test suite):
+## 1. Comparison suite (time, all contenders)
+
+The swift-collections-benchmark harness over all tasks — build, lookups
+(hit/miss), iteration, remove-all, fork+insert — for dense-int and shared-prefix
+string keys.
 
 ```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build -c release
+.build/release/ARTBenchmarks info --tasks                                   # list tasks
+.build/release/ARTBenchmarks run Results/results.json --cycles 3 --max-size 65536
+.build/release/ARTBenchmarks render Results/results.json Results/lookup.png --filter "lookup, hit"
 ```
 
-Useful `run` flags: `--max-size`, `--min-size`, `--cycles`, `--filter <regex>`,
-`-n/--dry-run`. Re-running appends to the results file, so repeated `--cycles`
-accumulate samples; the harness reports per-element time bands (min/mean/median).
+Charts are log-log: x = input size, y = **per-element** time (flat = linear
+scaling). `--filter <regex>` selects tasks. `fork + insert one` is O(n²) for
+`Dictionary`, so cap it with `--max-size 16384`.
 
-### Rendering charts
+## 2. Focused reports — RadixTree vs SortedDictionary (Markdown)
+
+Self-timed comparisons on the radix tree's sweet spot (long shared-prefix keys),
+written as a Markdown table.
 
 ```sh
-.build/release/ARTBenchmarks render results.json chart.png --filter "fork"
+.build/release/ARTBenchmarks shared-prefix Results/shared-prefix.md   # time, swept to 4M
+.build/release/ARTBenchmarks memory Results/memory.md                 # memory, bytes/element
 ```
 
-Charts are log-log: x = input size, y = **per-element** processing time. Flat
-lines mean linear scaling; an upward slope means super-linear per element.
+- **shared-prefix** — per-element lookup and build time. RadixTree's cost is flat
+  in `n` while SortedDictionary's grows with `log n × prefix-comparison`.
+- **memory** — bytes per element, from the process-footprint delta of building
+  each map (page-granular, approximate, but measured identically for both).
 
-## What's measured
+## 3. Profiling / flame graphs
 
-Nine tasks per contender. Integer keys use the harness's built-in generators
-(a shuffled `0..<size` permutation, i.e. a *dense* key space inserted in random
-order); string keys use long, common-prefix keys — the radix tree's sweet spot:
+`profile <op>` runs one RadixTree operation in a loop for a fixed duration so a
+profiler has a stable hot path. `op` ∈ `build | lookup | iterate | delete`.
 
-- build (subscript), lookups hit/miss, sequential iteration, remove-all
-- **fork + insert one** — the persistence headline: snapshot the whole map,
-  insert one fresh key, keep the original alive. Persistent maps share structure
-  (flat per-op cost); `Dictionary` copies its whole buffer (O(n) per op).
-- string build / lookup / iteration with shared-prefix keys
+```sh
+.build/release/ARTBenchmarks profile lookup 1000000 15   # op, n, seconds
+```
 
-## Caveats / things to extend
+### Instruments — no install; CPU and allocations
 
-- **`fork + insert one` is O(n²) total for `Dictionary`** (each of n forks does an
-  O(n) copy). Cap it with `--max-size 16384` or `Dictionary` dominates wall time.
+```sh
+../scripts/profile.sh lookup           # CPU time profile, opens Instruments
+../scripts/profile.sh build alloc      # allocation profile
+# usage: ../scripts/profile.sh <op> [cpu|alloc] [n] [seconds]
+```
+
+In Instruments, invert the Call Tree and "Hide system libraries" for a
+flame-graph-style view of the hot path; the **Allocations** instrument shows
+where memory is allocated.
+
+### samply — interactive in-browser flame graph (`brew install samply`)
+
+```sh
+samply record .build/release/ARTBenchmarks profile lookup 1000000 15
+```
+
+Opens the Firefox Profiler with an interactive flame graph, call tree, and stack
+chart — the easiest way to explore the hot path.
+
+### sample — quick text call tree, zero setup
+
+```sh
+.build/release/ARTBenchmarks profile lookup 1000000 20 &
+sample $! 5 -file /tmp/art-cpu.txt && open -e /tmp/art-cpu.txt
+```
+
+## Notes / things to extend
+
 - **Key distribution dominates ART's results.** Today we cover dense ints and
-  shared-prefix strings. To be honest about worst cases, add custom input
-  generators for *sparse/random* integers and *high-entropy* strings (register
-  via `benchmark.registerInputGenerator(for:)`).
-- **Key-conversion cost is included.** `RadixTree` allocates a `[UInt8]` per op
-  in `toBinaryComparableBytes()`. That's a real cost of the public API, but to
-  isolate the tree from the encoding, also benchmark the raw `ARTree<Value>`
-  engine on pre-encoded bytes (not yet wired up here).
+  shared-prefix strings; add custom input generators for sparse/random integers
+  and high-entropy strings to probe worst cases.
 - **Range/prefix queries** — ART's biggest theoretical advantage — aren't in the
   public `RadixTree` API yet, so they aren't benchmarked. Add them once exposed.
-
-## Note for maintainers
-
-Building `ARTreeModule` in release first surfaced two issues, now fixed in the
-library: a `default` case that fell through without returning once `assert` was
-stripped (`RawNode.swift`), and a Swift 6.3.2 optimizer crash in `StackPromotion`
-worked around with `@_optimize(none)` on `NodeStorage.create` (`NodeStorage.swift`).
-The library had only ever been built in debug before this.
+- Building `ARTreeModule` in release relies on an `@_optimize(none)` workaround
+  on `NodeStorage.create` for a Swift 6.3.2 `StackPromotion` optimizer crash.
