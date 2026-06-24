@@ -122,6 +122,14 @@ extension Node48: InternalNode {
     return childs[slot]
   }
 
+  // Direct lookup: one read of the 256-entry slot table, then one child read.
+  // Avoids the default `index(forKey:).flatMap { child(at:) }`, which indexes the
+  // table twice.
+  func child(forKey k: KeyPart) -> RawNode? {
+    let slot = keys[Int(k)]
+    return slot == 0xFF ? nil : childs[Int(slot)]
+  }
+
   mutating func addChild(forKey k: KeyPart, node: RawNode) -> UpdateResult<RawNode?> {
     if count < Self.numKeys {
       assert(keys[Int(k)] == 0xFF, "node for key \(k) already exists")

@@ -69,13 +69,16 @@ extension Node4: InternalNode {
   var endIndex: Index { count }
 
   func index(forKey k: KeyPart) -> Index? {
-    for (index, key) in keys[..<count].enumerated() {
-      if key == k {
-        return index
+    let count = self.count
+    return storage.withBodyPointer {
+      let keys = $0.assumingMemoryBound(to: KeyPart.self)
+      for index in 0..<count {
+        if keys[index] == k {
+          return index
+        }
       }
+      return nil
     }
-
-    return nil
   }
 
   func index(after index: Index) -> Index {

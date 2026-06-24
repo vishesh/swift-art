@@ -114,4 +114,21 @@ final class ARTreeNode16Tests: CollectionTestCase {
     }
     expectEqual(newNode?.type, .node4)
   }
+
+  // removeChild shifts surviving keys left but never clears the now-unused tail
+  // slot, so a stale byte can still equal a searched key. The SIMD key search must
+  // mask out slots >= count; this pins that against regressions.
+  @Test func test16IndexIgnoresStaleSlots() throws {
+    typealias T = Tree<[UInt8]>
+    var node = T.N16.allocate()
+    _ = node.addChild(forKey: 20, node: T.Leaf.allocate(key: [20], value: [1]))
+    _ = node.addChild(forKey: 30, node: T.Leaf.allocate(key: [30], value: [2]))
+    _ = node.addChild(forKey: 40, node: T.Leaf.allocate(key: [40], value: [3]))
+    // Remove key 20 (index 0). Survivors shift to [30, 40]; slot 2 keeps a stale 40.
+    _ = node.removeChild(at: 0)
+    expectEqual(node.index(forKey: 30), 0)
+    expectEqual(node.index(forKey: 40), 1)  // must be the valid lane, not the stale one
+    expectNil(node.index(forKey: 20))       // removed: absent
+    expectNil(node.index(forKey: 99))       // never present
+  }
 }

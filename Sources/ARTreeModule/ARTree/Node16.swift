@@ -5,6 +5,11 @@ struct Node16<Spec: ARTreeSpec> {
 extension Node16 {
   static var type: NodeType { .node16 }
   static var numKeys: Int { 16 }
+
+  // Lane index per slot, used to mask out stale slots in the SIMD key search.
+  static var _laneIndices: SIMD16<UInt8> {
+    SIMD16<UInt8>(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+  }
 }
 
 extension Node16 {
@@ -90,13 +95,22 @@ extension Node16: InternalNode {
   var endIndex: Index { count }
 
   func index(forKey k: KeyPart) -> Index? {
-    for (index, key) in keys[..<count].enumerated() {
-      if key == k {
-        return index
-      }
+    let count = self.count
+    // Compare all 16 key slots against `k` at once. Slots `>= count` are stale
+    // (removeChild leaves them dirty), so mask them out before testing — otherwise
+    // a stale byte equal to `k` would be a false hit. Keys are unique within a node,
+    // so at most one valid lane matches; sum its index out of an otherwise-zero
+    // vector (guarded by `any`, since a match at lane 0 also sums to 0).
+    let keyVec = storage.withBodyPointer {
+      $0.loadUnaligned(as: SIMD16<UInt8>.self)
     }
-
-    return nil
+    let valid = Node16._laneIndices .< SIMD16<UInt8>(repeating: UInt8(count))
+    let hit = (keyVec .== SIMD16<UInt8>(repeating: k)) .& valid
+    if !any(hit) {
+      return nil
+    }
+    let matchedLane = Node16._laneIndices.replacing(with: SIMD16<UInt8>(repeating: 0), where: .!hit)
+    return Int(matchedLane.wrappedSum())
   }
 
   func index(after index: Index) -> Index {

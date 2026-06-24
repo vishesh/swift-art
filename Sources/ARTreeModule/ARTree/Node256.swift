@@ -83,6 +83,10 @@ extension Node256: InternalNode {
     return childs[index]
   }
 
+  func child(forKey k: KeyPart) -> RawNode? {
+    return childs[Int(k)]
+  }
+
   mutating func addChild(forKey k: KeyPart, node: RawNode) -> UpdateResult<RawNode?> {
     assert(childs[Int(k)] == nil, "node for key \(k) already exists")
     childs[Int(k)] = node
