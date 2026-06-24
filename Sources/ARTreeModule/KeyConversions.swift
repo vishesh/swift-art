@@ -2,11 +2,21 @@ public protocol ConvertibleToBinaryComparableBytes {
   func withUnsafeBinaryComparableBytes<R>(
     _ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R
   static func fromBinaryComparableBytes(_ bytes: [UInt8]) -> Self
+
+  /// Decode a value from its binary-comparable bytes without requiring a `[UInt8]`.
+  /// Used on the iteration hot path to avoid materializing an array per element.
+  static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self
 }
 
 extension ConvertibleToBinaryComparableBytes {
   public func toBinaryComparableBytes() -> [UInt8] {
     self.withUnsafeBinaryComparableBytes { Array($0) }
+  }
+
+  // Default: fall back to the array decoder. Conformers with a cheap direct
+  // decode (integers, strings) override this to skip the allocation.
+  public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
+    fromBinaryComparableBytes(Array(bytes))
   }
 }
 
@@ -146,6 +156,57 @@ extension String: ConvertibleToBinaryComparableBytes {
 
   public static func fromBinaryComparableBytes(_ bytes: [UInt8]) -> Self {
     String(cString: bytes)
+  }
+
+  public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
+    // Bytes are the UTF-8 encoding plus a trailing NUL; drop it before decoding.
+    String(decoding: bytes.prefix(Swift.max(0, bytes.count - 1)), as: UTF8.self)
+  }
+}
+
+///-- Direct (allocation-free) integer decoders ----------------------------------------------//
+// Used by iteration to rebuild keys straight from a leaf's bytes, skipping the
+// `[UInt8]` the array-based decoder would allocate per element.
+
+extension UInt {
+  public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
+    Self(bigEndian: bytes.loadUnaligned(as: Self.self))
+  }
+}
+
+extension UInt16 {
+  public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
+    Self(bigEndian: bytes.loadUnaligned(as: Self.self))
+  }
+}
+
+extension UInt32 {
+  public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
+    Self(bigEndian: bytes.loadUnaligned(as: Self.self))
+  }
+}
+
+extension UInt64 {
+  public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
+    Self(bigEndian: bytes.loadUnaligned(as: Self.self))
+  }
+}
+
+extension Int {
+  public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
+    _flipSignBit(Self(bigEndian: bytes.loadUnaligned(as: Self.self)))
+  }
+}
+
+extension Int32 {
+  public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
+    _flipSignBit(Self(bigEndian: bytes.loadUnaligned(as: Self.self)))
+  }
+}
+
+extension Int64 {
+  public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
+    _flipSignBit(Self(bigEndian: bytes.loadUnaligned(as: Self.self)))
   }
 }
 

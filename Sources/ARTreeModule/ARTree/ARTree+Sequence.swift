@@ -1,12 +1,21 @@
+// One level of the traversal stack: an internal node and the cursor into its
+// children. A struct (not a tuple) so the cursor can be advanced in place without
+// reassigning — and thus retaining/releasing — the node reference each step.
+private struct _IterFrame {
+  let node: RawNode
+  var index: Int
+}
+
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension ARTreeImpl: Sequence {
   public typealias Iterator = _Iterator
 
   public struct _Iterator {
-    typealias _ChildIndex = InternalNode<Spec>.Index
-
     private let tree: ARTreeImpl<Spec>
-    private var path: [(any InternalNode<Spec>, _ChildIndex)]
+    // Traversal stack. Stored as concrete `RawNode` rather than `any
+    // InternalNode` so the per-step work (endIndex, child(at:), index(after:))
+    // specializes per node type instead of going through a witness table.
+    private var path: [_IterFrame]
     // Set when the whole tree is a single leaf (deletes can collapse the root to a
     // bare leaf). Yielded once, then cleared.
     private var rootLeaf: NodeLeaf<Spec>?
@@ -21,9 +30,9 @@ extension ARTreeImpl: Sequence {
         self.rootLeaf = node.toLeafNode()
         return
       }
-      let n: any InternalNode<Spec> = node.toInternalNode()
-      if n.count > 0 {
-        self.path = [(n, n.startIndex)]
+      let start = Self._startIndex(node)
+      if start < Self._endIndex(node) {
+        self.path = [_IterFrame(node: node, index: start)]
       }
     }
   }
@@ -33,49 +42,93 @@ extension ARTreeImpl: Sequence {
   }
 }
 
-// TODO: Instead of index, use node iterators, to advance to next child.
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension ARTreeImpl._Iterator: IteratorProtocol {
   public typealias Element = (Key, Spec.Value)  // TODO: Why just Value fails?
 
-  // Exhausted childs on the tip of path. Forward to sibling.
-  mutating private func advanceToSibling() {
-    let _ = path.popLast()
-    advanceToNextChild()
+  // Per-step traversal primitives, dispatched on the concrete node type. The
+  // tree (held by `self.tree`) keeps every node alive, so wrapping `node.buf`
+  // is cheap and unretained.
+  @inline(__always)
+  static func _startIndex(_ node: RawNode) -> Int {
+    switch node.type {
+    case .node4: return Node4<Spec>(buffer: node.buf).startIndex
+    case .node16: return Node16<Spec>(buffer: node.buf).startIndex
+    case .node48: return Node48<Spec>(buffer: node.buf).startIndex
+    case .node256: return Node256<Spec>(buffer: node.buf).startIndex
+    case .leaf: return 0
+    }
   }
 
-  mutating private func advanceToNextChild() {
-    guard let (node, index) = path.popLast() else {
-      return
+  @inline(__always)
+  static func _endIndex(_ node: RawNode) -> Int {
+    switch node.type {
+    case .node4: return Node4<Spec>(buffer: node.buf).endIndex
+    case .node16: return Node16<Spec>(buffer: node.buf).endIndex
+    case .node48: return Node48<Spec>(buffer: node.buf).endIndex
+    case .node256: return Node256<Spec>(buffer: node.buf).endIndex
+    case .leaf: return 0
     }
+  }
 
-    path.append((node, node.index(after: index)))
+  @inline(__always)
+  static func _indexAfter(_ node: RawNode, _ index: Int) -> Int {
+    switch node.type {
+    case .node4: return Node4<Spec>(buffer: node.buf).index(after: index)
+    case .node16: return Node16<Spec>(buffer: node.buf).index(after: index)
+    case .node48: return Node48<Spec>(buffer: node.buf).index(after: index)
+    case .node256: return Node256<Spec>(buffer: node.buf).index(after: index)
+    case .leaf: return index + 1
+    }
+  }
+
+  @inline(__always)
+  static func _childAt(_ node: RawNode, _ index: Int) -> RawNode? {
+    switch node.type {
+    case .node4: return Node4<Spec>(buffer: node.buf).child(at: index)
+    case .node16: return Node16<Spec>(buffer: node.buf).child(at: index)
+    case .node48: return Node48<Spec>(buffer: node.buf).child(at: index)
+    case .node256: return Node256<Spec>(buffer: node.buf).child(at: index)
+    case .leaf: return nil
+    }
   }
 
   mutating func next() -> Element? {
+    guard let leaf = nextLeaf() else { return nil }
+    return (leaf.key, leaf.value)
+  }
+
+  // Advance to the next leaf in order and return it without materializing its
+  // key as a `[UInt8]`. The public iterator decodes the key straight from the
+  // leaf's bytes; the `(Key, Value)` `next()` above keeps the array form for the
+  // engine's own Sequence contract.
+  mutating func nextLeaf() -> NodeLeaf<Spec>? {
     if let leaf = rootLeaf {
       rootLeaf = nil
-      return (leaf.key, leaf.value)
+      return leaf
     }
 
-    while !path.isEmpty {
-      while let (node, index) = path.last {
-        if index == node.endIndex {
-          advanceToSibling()
-          break
+    while let top = path.last {
+      let node = top.node
+      let index = top.index
+      if index >= Self._endIndex(node) {
+        // Exhausted this node: drop it and step the parent's cursor forward.
+        path.removeLast()
+        if !path.isEmpty {
+          let parent = path[path.count - 1].node
+          path[path.count - 1].index = Self._indexAfter(parent, path[path.count - 1].index)
         }
-
-        let next = node.child(at: index)!
-        if next.type == .leaf {
-          let leaf: NodeLeaf<Spec> = next.toLeafNode()
-          let result = (leaf.key, leaf.value)
-          advanceToNextChild()
-          return result
-        }
-
-        let nextNode: any InternalNode<Spec> = next.toInternalNode()
-        path.append((nextNode, nextNode.startIndex))
+        continue
       }
+
+      let child = Self._childAt(node, index)!
+      if child.type == .leaf {
+        let leaf: NodeLeaf<Spec> = child.toLeafNode()
+        path[path.count - 1].index = Self._indexAfter(node, index)
+        return leaf
+      }
+
+      path.append(_IterFrame(node: child, index: Self._startIndex(child)))
     }
 
     return nil

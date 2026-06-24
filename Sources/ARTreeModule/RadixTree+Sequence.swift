@@ -6,8 +6,12 @@ extension RadixTree: Sequence {
     var _iter: ARTree<Value>.Iterator
 
     mutating public func next() -> Element? {
-      guard let (k, v) = _iter.next() else { return nil }
-      return (Key.fromBinaryComparableBytes(k), v)
+      guard let leaf = _iter.nextLeaf() else { return nil }
+      // Decode the key straight from the leaf's bytes (no per-element [UInt8])
+      // and read the value in the same pass over the leaf storage.
+      return leaf.withKeyValue { keyPtr, valuePtr in
+        (Key.fromBinaryComparableBytes(UnsafeRawBufferPointer(keyPtr)), valuePtr.pointee)
+      }
     }
   }
 
