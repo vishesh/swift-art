@@ -18,6 +18,14 @@ extension FixedArray {
 
   @inlinable
   @inline(__always)
+  mutating func copy(src: UnsafeRawBufferPointer, start: Int, count: Int) where Element == UInt8 {
+    for ii in 0..<Swift.min(Self.capacity, count) {
+      self[ii] = src[start + ii]
+    }
+  }
+
+  @inlinable
+  @inline(__always)
   mutating func shiftLeft(toIndex: Int) {
     for ii in toIndex..<Self.capacity {
       self[ii - toIndex] = self[ii]

@@ -9,7 +9,12 @@ extension ARTreeImpl {
 
   @discardableResult
   public mutating func insert(key: Key, value: Value) -> Bool {
-    guard case (let action, var ref)? = _findInsertNode(key: key) else { return false }
+    key.withUnsafeBytes { insert(keyBytes: $0, value: value) }
+  }
+
+  @discardableResult
+  public mutating func insert(keyBytes key: UnsafeRawBufferPointer, value: Value) -> Bool {
+    guard case (let action, var ref)? = _findInsertNode(keyBytes: key) else { return false }
 
     switch action {
     case .replace(let leaf):
@@ -18,13 +23,14 @@ extension ARTreeImpl {
       }
 
     case .splitLeaf(let leaf, let depth):
-      let newLeaf = Self.allocateLeaf(key: key, value: value)
+      let newLeaf = Self.allocateLeaf(keyBytes: key, value: value)
       var longestPrefix = newLeaf.read {
         leaf.longestCommonPrefix(with: $0, fromIndex: depth)
       }
 
       var newNode = Node4<Spec>.allocate()
-      _ = newNode.addChild(forKey: leaf.key[depth + longestPrefix], node: leaf)
+      let existingByte = leaf.withKey { $0[depth + longestPrefix] }
+      _ = newNode.addChild(forKey: existingByte, node: leaf)
       _ = newNode.addChild(forKey: key[depth + longestPrefix], node: newLeaf)
 
       // TODO: Flip the direction of node creation.
@@ -35,7 +41,7 @@ extension ARTreeImpl {
         let nBytes = Swift.min(Const.maxPartialLength, longestPrefix)
         let start = depth + longestPrefix - nBytes
         newNode.partialLength = nBytes
-        newNode.partialBytes.copy(src: key[...], start: start, count: nBytes)
+        newNode.partialBytes.copy(src: key, start: start, count: nBytes)
         longestPrefix -= nBytes
 
         if longestPrefix <= 0 {
@@ -62,12 +68,12 @@ extension ARTreeImpl {
       node.partialBytes.shiftLeft(toIndex: prefixDiff + 1)
       node.partialLength -= prefixDiff + 1
 
-      let newLeaf = Self.allocateLeaf(key: key, value: value)
+      let newLeaf = Self.allocateLeaf(keyBytes: key, value: value)
       _ = newNode.addChild(forKey: key[depth + prefixDiff], node: newLeaf)
       ref.pointee = newNode.rawNode
 
     case .insertInto(var node, let depth):
-      Self.allocateLeaf(key: key, value: value).read { newLeaf in
+      Self.allocateLeaf(keyBytes: key, value: value).read { newLeaf in
         if case .replaceWith(let newNode) = node.addChild(forKey: key[depth], node: newLeaf) {
           ref.pointee = newNode
         }
@@ -78,7 +84,9 @@ extension ARTreeImpl {
   }
 
   // TODO: Make sure that the node returned have
-  fileprivate mutating func _findInsertNode(key: Key) -> (InsertAction, NodeReference)? {
+  fileprivate mutating func _findInsertNode(keyBytes key: UnsafeRawBufferPointer)
+    -> (InsertAction, NodeReference)?
+  {
     if _root == nil {
       // NOTE: Should we just create leaf? Likely tree will have more items anyway.
       _root = Node4<Spec>.allocate().read { $0.rawNode }
@@ -161,5 +169,11 @@ extension ARTreeImpl {
 extension ARTreeImpl {
   static func allocateLeaf(key: Key, value: Value) -> NodeStorage<NodeLeaf<Spec>> {
     return NodeLeaf<Spec>.allocate(key: key, value: value)
+  }
+
+  static func allocateLeaf(keyBytes key: UnsafeRawBufferPointer, value: Value)
+    -> NodeStorage<NodeLeaf<Spec>>
+  {
+    return NodeLeaf<Spec>.allocate(keyBytes: key, value: value)
   }
 }

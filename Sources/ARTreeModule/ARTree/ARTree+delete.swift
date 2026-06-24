@@ -1,13 +1,17 @@
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension ARTreeImpl {
   public mutating func delete(key: Key) {
+    key.withUnsafeBytes { delete(keyBytes: $0) }
+  }
+
+  public mutating func delete(keyBytes key: UnsafeRawBufferPointer) {
     if _root == nil {
       return
     }
 
     let isUnique = _root!.isUnique
     var child = _root
-    switch _delete(child: &child, key: key, depth: 0, isUniquePath: isUnique) {
+    switch _delete(child: &child, keyBytes: key, depth: 0, isUniquePath: isUnique) {
     case .noop:
       return
     case .replaceWith(let newValue):
@@ -22,7 +26,7 @@ extension ARTreeImpl {
 
   private mutating func _delete(
     child: inout RawNode?,
-    key: Key,
+    keyBytes key: UnsafeRawBufferPointer,
     depth: Int,
     isUniquePath: Bool
   ) -> UpdateResult<RawNode?> {
@@ -51,7 +55,7 @@ extension ARTreeImpl {
 
     return node.updateChild(forKey: key[newDepth], isUniquePath: isUniquePath) {
       var child = $0
-      return _delete(child: &child, key: key, depth: newDepth + 1, isUniquePath: $1)
+      return _delete(child: &child, keyBytes: key, depth: newDepth + 1, isUniquePath: $1)
     }
   }
 }

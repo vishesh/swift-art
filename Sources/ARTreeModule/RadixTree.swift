@@ -53,8 +53,7 @@ extension RadixTree {
   /// - Returns: The value that was replaced, or nil if a new key-value pair was added.
   /// - Complexity: O(`log n`) where `n` is the number of key-value pairs in the dictionary.
   public mutating func updateValue(_ value: Value, forKey key: Key) -> Bool {
-    let kb = key.toBinaryComparableBytes()
-    return _tree.insert(key: kb, value: value)
+    key.withUnsafeBinaryComparableBytes { _tree.insert(keyBytes: $0, value: value) }
   }
 }
 
@@ -69,7 +68,6 @@ extension RadixTree {
   /// - Returns: The value that was removed, or `nil` if the key was not present.
   /// - Complexity: O(`log n`) where `n` is the number of key-value pairs in the collection.
   public mutating func removeValue(forKey key: Key) {
-    let kb = key.toBinaryComparableBytes()
-    _tree.delete(key: kb)
+    key.withUnsafeBinaryComparableBytes { _tree.delete(keyBytes: $0) }
   }
 }

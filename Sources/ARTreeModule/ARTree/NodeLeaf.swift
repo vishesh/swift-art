@@ -9,15 +9,17 @@ extension NodeLeaf {
 
 extension NodeLeaf {
   static func allocate(key: Key, value: Value) -> NodeStorage<Self> {
+    key.withUnsafeBytes { allocate(keyBytes: $0, value: value) }
+  }
+
+  static func allocate(keyBytes key: UnsafeRawBufferPointer, value: Value) -> NodeStorage<Self> {
     let size = MemoryLayout<UInt32>.stride + key.count + MemoryLayout<Value>.stride
     let storage = NodeStorage<NodeLeaf>.create(type: .leaf, size: size)
 
     storage.update { leaf in
       leaf.keyLength = key.count
       leaf.withKeyValue { keyPtr, valuePtr in
-        key.withUnsafeBytes {
-          UnsafeMutableRawBufferPointer(keyPtr).copyBytes(from: $0)
-        }
+        UnsafeMutableRawBufferPointer(keyPtr).copyBytes(from: key)
         valuePtr.pointee = value
       }
     }
