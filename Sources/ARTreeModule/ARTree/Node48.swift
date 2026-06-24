@@ -136,7 +136,13 @@ extension Node48: InternalNode {
   func childOpaque(forKey k: KeyPart) -> UnsafeMutableRawPointer? {
     let slot = keys[Int(k)]
     if slot == 0xFF { return nil }
-    return UnsafeRawPointer(childs.baseAddress! + Int(slot)).loadUnaligned(as: UnsafeMutableRawPointer?.self)
+    return UnsafeRawPointer(childs.baseAddress! + Int(slot)).loadUnaligned(
+      as: UnsafeMutableRawPointer?.self)
+  }
+
+  // In Node48 the index IS the key byte (0...255); `keys[index]` is the slot.
+  func keyByte(at index: Index) -> KeyPart {
+    return KeyPart(index)
   }
 
   mutating func addChild(forKey k: KeyPart, node: RawNode) -> UpdateResult<RawNode?> {

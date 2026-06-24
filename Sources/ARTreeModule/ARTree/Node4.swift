@@ -113,7 +113,12 @@ extension Node4: InternalNode {
 
   func childOpaque(forKey k: KeyPart) -> UnsafeMutableRawPointer? {
     guard let index = index(forKey: k) else { return nil }
-    return UnsafeRawPointer(childs.baseAddress! + index).loadUnaligned(as: UnsafeMutableRawPointer?.self)
+    return UnsafeRawPointer(childs.baseAddress! + index).loadUnaligned(
+      as: UnsafeMutableRawPointer?.self)
+  }
+
+  func keyByte(at index: Index) -> KeyPart {
+    return keys[index]
   }
 
   mutating func addChild(forKey k: KeyPart, node: RawNode) -> UpdateResult<RawNode?> {

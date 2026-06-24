@@ -91,7 +91,13 @@ extension Node256: InternalNode {
   }
 
   func childOpaque(forKey k: KeyPart) -> UnsafeMutableRawPointer? {
-    return UnsafeRawPointer(childs.baseAddress! + Int(k)).loadUnaligned(as: UnsafeMutableRawPointer?.self)
+    return UnsafeRawPointer(childs.baseAddress! + Int(k)).loadUnaligned(
+      as: UnsafeMutableRawPointer?.self)
+  }
+
+  // In Node256 the index IS the key byte (0...255).
+  func keyByte(at index: Index) -> KeyPart {
+    return KeyPart(index)
   }
 
   mutating func addChild(forKey k: KeyPart, node: RawNode) -> UpdateResult<RawNode?> {

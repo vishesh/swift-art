@@ -64,9 +64,4 @@ extension ARTreeImpl {
     depth += 1
     return child
   }
-
-  public mutating func getRange(start: Key, end: Key) {
-    // TODO
-    fatalError("not implemented")
-  }
 }

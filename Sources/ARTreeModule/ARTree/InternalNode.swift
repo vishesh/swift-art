@@ -19,6 +19,9 @@ protocol InternalNode<Spec>: ARTNode {
   func child(forKey: KeyPart) -> RawNode?  // TODO: Remove
   func child(at: Index) -> RawNode?  // TODO: Remove
 
+  // The key byte that routes to the child at `index` (used by ordered/range scans).
+  func keyByte(at: Index) -> KeyPart
+
   // Child buffer as an unretained opaque pointer (no ARC), or nil if absent.
   // Caller must keep the tree alive.
   func childOpaque(forKey: KeyPart) -> UnsafeMutableRawPointer?
