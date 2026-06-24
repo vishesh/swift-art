@@ -7,13 +7,9 @@ extension ARTreeImpl {
   public func getValue(keyBytes key: UnsafeRawBufferPointer) -> Value? {
     guard let rootRaw = _root else { return nil }
 
-    // Read-only walk. `self._root` keeps the root alive for the whole call, and
-    // every node strongly retains its children, so the entire reachable subtree
-    // stays alive — there's no mutation here that could free a node mid-walk.
-    // That lets us traverse with unretained references (opaque buffer pointers
-    // dereferenced through `_withUnsafeGuaranteedRef`) instead of paying a
-    // retain/release on every hop. `withExtendedLifetime` pins the root so the
-    // optimizer can't release the subtree before the final dereference.
+    // The root (held by `_root`) keeps the whole reachable subtree alive for this
+    // read, so we walk it with unretained opaque pointers — no retain/release per
+    // hop. `withExtendedLifetime` keeps the root pinned past the final deref.
     return withExtendedLifetime(rootRaw.buf) { () -> Value? in
       var current = Unmanaged.passUnretained(rootRaw.buf).toOpaque()
       var depth = 0
@@ -28,10 +24,7 @@ extension ARTreeImpl {
           }
         }
 
-        // Switch on the concrete node type so the per-hop work (prefix check,
-        // child search) is specialized and inlined rather than dispatched through
-        // an `any InternalNode` witness table. Returns nil when the key is absent
-        // (prefix mismatch or no matching child); children are never nil.
+        // nil means the key is absent (prefix mismatch or no matching child).
         let next: UnsafeMutableRawPointer? = node._withUnsafeGuaranteedRef { buf in
           switch type {
           case .node4: return _descend(Node4<Spec>(buffer: buf), key, &depth)

@@ -34,8 +34,7 @@ extension Node256 {
 
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
-      // Move children: transfer each child's pointer bits (no retain), then
-      // forget the unique, about-to-be-discarded source so it releases nothing.
+      // Move (don't retain) the children out of the discarded source.
       let src = copyFrom.childs.baseAddress!
       let dst = newNode.childs.baseAddress!
       for key in 0..<256 {

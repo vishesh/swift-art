@@ -93,9 +93,8 @@ extension ARTreeImpl {
     }
 
     var depth = 0
-    // Compute the root's uniqueness BEFORE binding `current`: `current` holds a
-    // strong reference to the same buffer, so taking it first would make
-    // isKnownUniquelyReferenced see two refs and report a unique root as shared.
+    // Check uniqueness before binding `current` — it adds a second ref to the
+    // root buffer, which would otherwise make a unique root look shared.
     var isUnique = isKnownUniquelyReferenced(&_root!.buf)
     var current: RawNode = _root!
     var ref = NodeReference(&_root)
@@ -112,8 +111,6 @@ extension ARTreeImpl {
         current = clone
       }
 
-      // Switch on the concrete node type so the per-hop work specializes instead
-      // of churning through `any InternalNode`/`any ARTNode` boxes each step.
       let step: _InsertStep
       switch current.type {
       case .node4: step = _insertStep(Node4<Spec>(buffer: current.buf), key, &depth, &ref)
@@ -165,8 +162,6 @@ extension ARTreeImpl {
     fatalError("unexpected state")
   }
 
-  // One step down an internal node during insert. Mirrors the descent the loop
-  // used to do through `any InternalNode`, specialized on the concrete node.
   private enum _InsertStep {
     case splitNode(prefixDiff: Int)
     case insertInto
@@ -196,8 +191,7 @@ extension ARTreeImpl {
 
     return node.withChildRef(at: index) { ptr in
       ref = NodeReference(ptr)
-      // Read uniqueness in place on the slot: copying the child into a local
-      // first would add a second reference and make every node look shared.
+      // Check uniqueness in place; a copied-out child would add a second ref.
       let childUnique = ptr.pointee!.isUnique
       return .descend(child: ptr.pointee!, childUnique: childUnique)
     }

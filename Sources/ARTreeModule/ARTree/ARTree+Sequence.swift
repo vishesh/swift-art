@@ -1,6 +1,5 @@
-// One level of the traversal stack: an internal node and the cursor into its
-// children. A struct (not a tuple) so the cursor can be advanced in place without
-// reassigning — and thus retaining/releasing — the node reference each step.
+// A traversal-stack level: an internal node and its child cursor. A struct (not a
+// tuple) so the cursor advances in place without retaining/releasing the node.
 private struct _IterFrame {
   let node: RawNode
   var index: Int
@@ -12,9 +11,8 @@ extension ARTreeImpl: Sequence {
 
   public struct _Iterator {
     private let tree: ARTreeImpl<Spec>
-    // Traversal stack. Stored as concrete `RawNode` rather than `any
-    // InternalNode` so the per-step work (endIndex, child(at:), index(after:))
-    // specializes per node type instead of going through a witness table.
+    // Concrete `RawNode` frames (not `any InternalNode`) so per-step work
+    // specializes per node type instead of dispatching through a witness table.
     private var path: [_IterFrame]
     // Set when the whole tree is a single leaf (deletes can collapse the root to a
     // bare leaf). Yielded once, then cleared.
@@ -46,9 +44,8 @@ extension ARTreeImpl: Sequence {
 extension ARTreeImpl._Iterator: IteratorProtocol {
   public typealias Element = (Key, Spec.Value)  // TODO: Why just Value fails?
 
-  // Per-step traversal primitives, dispatched on the concrete node type. The
-  // tree (held by `self.tree`) keeps every node alive, so wrapping `node.buf`
-  // is cheap and unretained.
+  // Per-step primitives dispatched on concrete node type. `tree` keeps every node
+  // alive, so wrapping `node.buf` is unretained.
   @inline(__always)
   static func _startIndex(_ node: RawNode) -> Int {
     switch node.type {
@@ -98,10 +95,8 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
     return (leaf.key, leaf.value)
   }
 
-  // Advance to the next leaf in order and return it without materializing its
-  // key as a `[UInt8]`. The public iterator decodes the key straight from the
-  // leaf's bytes; the `(Key, Value)` `next()` above keeps the array form for the
-  // engine's own Sequence contract.
+  // Next leaf in order, without materializing its key. The public iterator
+  // decodes the key from the leaf bytes; `next()` above keeps the array form.
   mutating func nextLeaf() -> NodeLeaf<Spec>? {
     if let leaf = rootLeaf {
       rootLeaf = nil

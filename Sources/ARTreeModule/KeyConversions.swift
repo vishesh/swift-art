@@ -3,8 +3,7 @@ public protocol ConvertibleToBinaryComparableBytes {
     _ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R
   static func fromBinaryComparableBytes(_ bytes: [UInt8]) -> Self
 
-  /// Decode a value from its binary-comparable bytes without requiring a `[UInt8]`.
-  /// Used on the iteration hot path to avoid materializing an array per element.
+  /// Decode from binary-comparable bytes without a `[UInt8]` (used by iteration).
   static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self
 }
 
@@ -13,8 +12,7 @@ extension ConvertibleToBinaryComparableBytes {
     self.withUnsafeBinaryComparableBytes { Array($0) }
   }
 
-  // Default: fall back to the array decoder. Conformers with a cheap direct
-  // decode (integers, strings) override this to skip the allocation.
+  // Default falls back to the array decoder; integers and strings override it.
   public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {
     fromBinaryComparableBytes(Array(bytes))
   }
@@ -165,8 +163,6 @@ extension String: ConvertibleToBinaryComparableBytes {
 }
 
 ///-- Direct (allocation-free) integer decoders ----------------------------------------------//
-// Used by iteration to rebuild keys straight from a leaf's bytes, skipping the
-// `[UInt8]` the array-based decoder would allocate per element.
 
 extension UInt {
   public static func fromBinaryComparableBytes(_ bytes: UnsafeRawBufferPointer) -> Self {

@@ -51,9 +51,7 @@ extension Node16 {
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
       UnsafeMutableRawBufferPointer(newNode.keys).copyBytes(from: copyFrom.keys)
-      // Move children: copyBytes transfers the pointer bits without retaining;
-      // forgetChildren then zeroes the (unique, about-to-be-discarded) source so
-      // its deinit releases nothing. Avoids retain-all + release-all churn.
+      // Move (don't retain) the children out of the discarded source.
       UnsafeMutableRawBufferPointer(newNode.childs).copyBytes(
         from: UnsafeMutableRawBufferPointer(copyFrom.childs))
       Self.forgetChildren(copyFrom.childs)
@@ -68,8 +66,7 @@ extension Node16 {
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
 
-      // Move children: transfer each surviving child's bits (no retain), then
-      // forget the unique, about-to-be-discarded source so it releases nothing.
+      // Move (don't retain) the surviving children out of the discarded source.
       let src = copyFrom.childs.baseAddress!
       let dst = newNode.childs.baseAddress!
       var slot = 0
@@ -103,11 +100,9 @@ extension Node16: InternalNode {
 
   func index(forKey k: KeyPart) -> Index? {
     let count = self.count
-    // Compare all 16 key slots against `k` at once. Slots `>= count` are stale
-    // (removeChild leaves them dirty), so mask them out before testing — otherwise
-    // a stale byte equal to `k` would be a false hit. Keys are unique within a node,
-    // so at most one valid lane matches; sum its index out of an otherwise-zero
-    // vector (guarded by `any`, since a match at lane 0 also sums to 0).
+    // SIMD compare of all 16 slots. Slots >= count are stale (removeChild leaves
+    // them dirty), so mask them out or a stale byte == k is a false hit. At most
+    // one valid lane matches, so sum its index out of an otherwise-zero vector.
     let keyVec = storage.withBodyPointer {
       $0.loadUnaligned(as: SIMD16<UInt8>.self)
     }

@@ -49,8 +49,7 @@ extension Node48 {
 
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
-      // Move children (see Node16.allocate(copyFrom:)): transfer the bits, then
-      // forget the source so its deinit releases nothing.
+      // Move (don't retain) the children out of the discarded source.
       UnsafeMutableRawBufferPointer(newNode.childs).copyBytes(
         from: UnsafeMutableRawBufferPointer(copyFrom.childs))
       for (idx, key) in copyFrom.keys.enumerated() {
@@ -68,9 +67,8 @@ extension Node48 {
 
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
-      // Move children: transfer each occupied slot's bits (no retain), checking
-      // emptiness via the raw pointer bits to avoid a retaining read, then forget
-      // the unique, about-to-be-discarded source so it releases nothing.
+      // Move (don't retain) the children out of the discarded source; test
+      // emptiness via the raw bits to avoid a retaining read.
       let src = copyFrom.childs.baseAddress!
       let dst = newNode.childs.baseAddress!
       var slot = 0
@@ -129,9 +127,7 @@ extension Node48: InternalNode {
     return childs[slot]
   }
 
-  // Direct lookup: one read of the 256-entry slot table, then one child read.
-  // Avoids the default `index(forKey:).flatMap { child(at:) }`, which indexes the
-  // table twice.
+  // Override the default child(forKey:) to index the slot table once, not twice.
   func child(forKey k: KeyPart) -> RawNode? {
     let slot = keys[Int(k)]
     return slot == 0xFF ? nil : childs[Int(slot)]
@@ -169,10 +165,8 @@ extension Node48: InternalNode {
     let targetSlot = Int(keys[index])
     assert(targetSlot != 0xFF, "slot is empty already")
 
-    // Free the child slot and unmap the key. We deliberately do NOT compact the
-    // child array: every reader (child(at:), withChildRef, the shrink/clone
-    // copies) goes through the key→slot map, and addChild's findFreeSlot reuses
-    // holes — so compacting would only buy an O(256) reverse-lookup per delete.
+    // Don't compact the child array: readers use the key→slot map and addChild
+    // reuses holes, so compacting would only cost an O(256) reverse-lookup here.
     childs[targetSlot] = nil
     keys[index] = 0xFF
     count -= 1

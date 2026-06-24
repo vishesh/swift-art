@@ -7,8 +7,7 @@ extension RadixTree: Sequence {
 
     mutating public func next() -> Element? {
       guard let leaf = _iter.nextLeaf() else { return nil }
-      // Decode the key straight from the leaf's bytes (no per-element [UInt8])
-      // and read the value in the same pass over the leaf storage.
+      // Decode the key from the leaf bytes (no [UInt8]) and read value in one pass.
       return leaf.withKeyValue { keyPtr, valuePtr in
         (Key.fromBinaryComparableBytes(UnsafeRawBufferPointer(keyPtr)), valuePtr.pointee)
       }

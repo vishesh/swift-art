@@ -19,8 +19,8 @@ protocol InternalNode<Spec>: ARTNode {
   func child(forKey: KeyPart) -> RawNode?  // TODO: Remove
   func child(at: Index) -> RawNode?  // TODO: Remove
 
-  // Read-path child lookup: returns the child buffer as an unretained opaque
-  // pointer (no ARC traffic), or nil if absent. Caller must keep the tree alive.
+  // Child buffer as an unretained opaque pointer (no ARC), or nil if absent.
+  // Caller must keep the tree alive.
   func childOpaque(forKey: KeyPart) -> UnsafeMutableRawPointer?
 
   mutating func addChild(forKey: KeyPart, node: RawNode) -> UpdateResult<RawNode?>
@@ -109,9 +109,8 @@ extension InternalNode {
   }
 
   func prefixMismatch(withKey key: UnsafeRawBufferPointer, fromIndex depth: Int) -> Int {
-    // Read the header once and compare prefix bytes directly. Going through the
-    // `partialBytes` property here would copy the whole 8-byte FixedArray (and
-    // re-enter the storage closure) on every compared byte.
+    // Open the header once; the `partialBytes` property would copy the 8-byte
+    // array (and re-enter the storage closure) per compared byte.
     return storage.withHeaderPointer { header in
       let partialLength = Int(header.pointee.partialLength)
       assert(partialLength <= Const.maxPartialLength, "partial length is always bounded")
@@ -137,19 +136,15 @@ extension InternalNode {
     }
   }
 
-  // Zero a child array as raw bytes — WITHOUT releasing the references it held.
-  // Used when growing/shrinking a node: the destination takes over the source's
-  // child references by copying their pointer bits (no retain), then the source
-  // "forgets" them here so its deinit releases nothing. The reference count is
-  // unchanged — ownership is moved, not duplicated. Only valid when the source
-  // is uniquely owned and discarded immediately after (the COW mutation path
-  // guarantees this); a shared node must be deep-copied via `clone()` instead.
+  // Zero a child array as raw bytes WITHOUT releasing — used after moving the
+  // children into a grown/shrunk node so the source's deinit releases nothing
+  // (ownership moves, refcount unchanged). Only safe when the source is uniquely
+  // owned and discarded right after; a shared node must `clone()` instead.
   static func forgetChildren(_ children: Children) {
     UnsafeMutableRawBufferPointer(children).initializeMemory(as: UInt8.self, repeating: 0)
   }
 
-  // Move one child slot's pointer bits from `src` to `dst` without ARC traffic.
-  // The caller must `forgetChildren` the source afterwards.
+  // Move one child slot's pointer bits without ARC; caller must forgetChildren after.
   @inline(__always)
   static func moveChild(
     from src: UnsafeMutablePointer<RawNode?>, to dst: UnsafeMutablePointer<RawNode?>
