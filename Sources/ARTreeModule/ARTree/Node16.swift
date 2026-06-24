@@ -51,9 +51,12 @@ extension Node16 {
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
       UnsafeMutableRawBufferPointer(newNode.keys).copyBytes(from: copyFrom.keys)
+      // Move children: copyBytes transfers the pointer bits without retaining;
+      // forgetChildren then zeroes the (unique, about-to-be-discarded) source so
+      // its deinit releases nothing. Avoids retain-all + release-all churn.
       UnsafeMutableRawBufferPointer(newNode.childs).copyBytes(
         from: UnsafeMutableRawBufferPointer(copyFrom.childs))
-      Self.retainChildren(newNode.childs, count: newNode.count)
+      Self.forgetChildren(copyFrom.childs)
     }
 
     return storage
@@ -65,6 +68,10 @@ extension Node16 {
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
 
+      // Move children: transfer each surviving child's bits (no retain), then
+      // forget the unique, about-to-be-discarded source so it releases nothing.
+      let src = copyFrom.childs.baseAddress!
+      let dst = newNode.childs.baseAddress!
       var slot = 0
       for key: UInt8 in 0...255 {
         let childPosition = Int(copyFrom.keys[Int(key)])
@@ -73,12 +80,12 @@ extension Node16 {
         }
 
         newNode.keys[slot] = key
-        newNode.childs[slot] = copyFrom.childs[childPosition]
+        Self.moveChild(from: src + childPosition, to: dst + slot)
         slot += 1
       }
+      Self.forgetChildren(copyFrom.childs)
 
       assert(slot == newNode.count)
-      // Element assignment above already retains each child; no retainChildren.
     }
 
     return storage

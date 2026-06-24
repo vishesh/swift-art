@@ -49,13 +49,15 @@ extension Node48 {
 
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
+      // Move children (see Node16.allocate(copyFrom:)): transfer the bits, then
+      // forget the source so its deinit releases nothing.
       UnsafeMutableRawBufferPointer(newNode.childs).copyBytes(
         from: UnsafeMutableRawBufferPointer(copyFrom.childs))
       for (idx, key) in copyFrom.keys.enumerated() {
         newNode.keys[Int(key)] = UInt8(idx)
       }
 
-      Self.retainChildren(newNode.childs, count: newNode.count)
+      Self.forgetChildren(copyFrom.childs)
     }
 
     return storage
@@ -66,18 +68,23 @@ extension Node48 {
 
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
+      // Move children: transfer each occupied slot's bits (no retain), checking
+      // emptiness via the raw pointer bits to avoid a retaining read, then forget
+      // the unique, about-to-be-discarded source so it releases nothing.
+      let src = copyFrom.childs.baseAddress!
+      let dst = newNode.childs.baseAddress!
       var slot = 0
-      for (key, child) in copyFrom.childs.enumerated() {
-        if child == nil {
+      for key in 0..<256 {
+        let srcSlot = src + key
+        if UnsafeRawPointer(srcSlot).loadUnaligned(as: UInt.self) == 0 {
           continue
         }
 
         newNode.keys[key] = UInt8(slot)
-        newNode.childs[slot] = child
+        Self.moveChild(from: srcSlot, to: dst + slot)
         slot += 1
       }
-
-      // Element assignment above already retains each child; no retainChildren.
+      Self.forgetChildren(copyFrom.childs)
     }
 
     return storage

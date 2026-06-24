@@ -48,11 +48,13 @@ extension Node4 {
 
       UnsafeMutableRawBufferPointer(newNode.keys).copyBytes(
         from: UnsafeBufferPointer(rebasing: copyFrom.keys[0..<numKeys]))
+      // Move children (see Node16.allocate(copyFrom:)): transfer the surviving
+      // children's bits, then forget the source so its deinit releases nothing.
       UnsafeMutableRawBufferPointer(newNode.childs).copyBytes(
         from: UnsafeRawBufferPointer(
           UnsafeBufferPointer(rebasing: copyFrom.childs[0..<numKeys])))
 
-      Self.retainChildren(newNode.childs, count: newNode.count)
+      Self.forgetChildren(copyFrom.childs)
     }
 
     return storage

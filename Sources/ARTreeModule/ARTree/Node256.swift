@@ -34,14 +34,18 @@ extension Node256 {
 
     storage.update { newNode in
       newNode.copyHeader(from: copyFrom)
+      // Move children: transfer each child's pointer bits (no retain), then
+      // forget the unique, about-to-be-discarded source so it releases nothing.
+      let src = copyFrom.childs.baseAddress!
+      let dst = newNode.childs.baseAddress!
       for key in 0..<256 {
         let slot = Int(copyFrom.keys[key])
         if slot < 0xFF {
-          newNode.childs[key] = copyFrom.childs[slot]
+          Self.moveChild(from: src + slot, to: dst + key)
         }
       }
+      Self.forgetChildren(copyFrom.childs)
 
-      // Element assignment above already retains each child; no retainChildren.
       assert(newNode.count == 48, "should have exactly 48 childs")
     }
 

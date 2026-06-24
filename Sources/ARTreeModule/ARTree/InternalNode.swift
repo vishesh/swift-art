@@ -136,6 +136,27 @@ extension InternalNode {
       }
     }
   }
+
+  // Zero a child array as raw bytes — WITHOUT releasing the references it held.
+  // Used when growing/shrinking a node: the destination takes over the source's
+  // child references by copying their pointer bits (no retain), then the source
+  // "forgets" them here so its deinit releases nothing. The reference count is
+  // unchanged — ownership is moved, not duplicated. Only valid when the source
+  // is uniquely owned and discarded immediately after (the COW mutation path
+  // guarantees this); a shared node must be deep-copied via `clone()` instead.
+  static func forgetChildren(_ children: Children) {
+    UnsafeMutableRawBufferPointer(children).initializeMemory(as: UInt8.self, repeating: 0)
+  }
+
+  // Move one child slot's pointer bits from `src` to `dst` without ARC traffic.
+  // The caller must `forgetChildren` the source afterwards.
+  @inline(__always)
+  static func moveChild(
+    from src: UnsafeMutablePointer<RawNode?>, to dst: UnsafeMutablePointer<RawNode?>
+  ) {
+    UnsafeMutableRawPointer(dst).copyMemory(
+      from: UnsafeRawPointer(src), byteCount: MemoryLayout<RawNode?>.stride)
+  }
 }
 
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
