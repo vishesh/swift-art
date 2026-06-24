@@ -8,32 +8,50 @@ extension ARTreeImpl {
     var current = _root
     var depth = 0
     while depth <= key.count {
-      guard let _rawNode = current else {
+      guard let rawNode = current else {
         return nil
       }
 
-      if _rawNode.type == .leaf {
-        let leaf: NodeLeaf<Spec> = _rawNode.toLeafNode()
-        return leaf.keyEquals(with: key)
-          ? leaf.value
-          : nil
+      // Switch on the concrete node type so the per-hop work (prefix check, child
+      // search, header reads) is specialized and inlined instead of dispatched
+      // through an `any InternalNode` witness table.
+      switch rawNode.type {
+      case .leaf:
+        let leaf = NodeLeaf<Spec>(buffer: rawNode.buf)
+        return leaf.keyEquals(with: key) ? leaf.value : nil
+      case .node4:
+        current = _descend(Node4<Spec>(buffer: rawNode.buf), key, &depth)
+      case .node16:
+        current = _descend(Node16<Spec>(buffer: rawNode.buf), key, &depth)
+      case .node48:
+        current = _descend(Node48<Spec>(buffer: rawNode.buf), key, &depth)
+      case .node256:
+        current = _descend(Node256<Spec>(buffer: rawNode.buf), key, &depth)
       }
-
-      let node: any InternalNode<Spec> = _rawNode.toInternalNode()
-      if node.partialLength > 0 {
-        let prefixLen = node.prefixMismatch(withKey: key, fromIndex: depth)
-        assert(prefixLen <= Const.maxPartialLength, "partial length is always bounded")
-        if prefixLen != node.partialLength {
-          return nil
-        }
-        depth = depth + node.partialLength
-      }
-
-      current = node.child(forKey: key[depth])
-      depth += 1
     }
 
     return nil
+  }
+
+  // One step down an internal node: returns the child to visit next, or nil if
+  // the key is absent (prefix mismatch or no matching child). A mismatch maps to
+  // `current = nil`, which the loop's guard turns into "not found".
+  @inline(__always)
+  private func _descend<N: InternalNode<Spec>>(
+    _ node: N, _ key: UnsafeRawBufferPointer, _ depth: inout Int
+  ) -> RawNode? {
+    if node.partialLength > 0 {
+      let prefixLen = node.prefixMismatch(withKey: key, fromIndex: depth)
+      assert(prefixLen <= Const.maxPartialLength, "partial length is always bounded")
+      if prefixLen != node.partialLength {
+        return nil
+      }
+      depth += node.partialLength
+    }
+
+    let child = node.child(forKey: key[depth])
+    depth += 1
+    return child
   }
 
   public mutating func getRange(start: Key, end: Key) {
