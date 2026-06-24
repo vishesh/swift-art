@@ -1,9 +1,18 @@
+import Foundation
 import CollectionsBenchmark
 import ARTreeModule
 import HashTreeCollections
 #if UnstableSortedCollections
 import SortedCollections
 #endif
+
+// Custom mode: `ARTBenchmarks shared-prefix [out.md]` writes a focused Markdown
+// comparison instead of running the CollectionsBenchmark CLI.
+if CommandLine.arguments.dropFirst().first == "shared-prefix" {
+  let out = CommandLine.arguments.dropFirst(2).first ?? "Results/shared-prefix.md"
+  runSharedPrefixReport(outputPath: out)
+  exit(0)
+}
 
 var benchmark = Benchmark(title: "swift-art: RadixTree vs swift-collections")
 
