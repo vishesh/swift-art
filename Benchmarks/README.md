@@ -57,12 +57,15 @@ written as a Markdown table.
 ```sh
 .build/release/ARTBenchmarks shared-prefix Results/shared-prefix.md   # time, swept to 4M
 .build/release/ARTBenchmarks memory Results/memory.md                 # memory, bytes/element
+.build/release/ARTBenchmarks range Results/range.md                   # range-scan time
 ```
 
 - **shared-prefix** — per-element lookup and build time. RadixTree's cost is flat
   in `n` while SortedDictionary's grows with `log n × prefix-comparison`.
 - **memory** — bytes per element, from the process-footprint delta of building
   each map (page-granular, approximate, but measured identically for both).
+- **range** — per-query time to scan a key window (`forEachEntry(from:to:)` vs a
+  B-tree seek + forward scan).
 
 ## 3. Profiling / flame graphs
 

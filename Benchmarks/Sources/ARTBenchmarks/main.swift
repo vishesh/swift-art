@@ -17,6 +17,10 @@ case "memory":
   let out = CommandLine.arguments.dropFirst(2).first ?? "Results/memory.md"
   runMemoryReport(outputPath: out)
   exit(0)
+case "range":
+  let out = CommandLine.arguments.dropFirst(2).first ?? "Results/range.md"
+  runRangeReport(outputPath: out)
+  exit(0)
 case "profile":
   let args = Array(CommandLine.arguments.dropFirst(2))
   let op = args.first ?? "build"
