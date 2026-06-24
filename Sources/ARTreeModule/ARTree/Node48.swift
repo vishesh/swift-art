@@ -161,29 +161,16 @@ extension Node48: InternalNode {
     assert(index < 256, "invalid index")
     let targetSlot = Int(keys[index])
     assert(targetSlot != 0xFF, "slot is empty already")
-    // 1. Find out who has the last slot.
-    var lastSlotKey = 0
-    for k in 0..<256 {
-      if keys[k] == count - 1 {
-        lastSlotKey = k
-        break
-      }
-    }
 
-    // 2. Move last child slot into current child slot, and reset last child slot.
-    childs[targetSlot] = childs[count - 1]
-    childs[count - 1] = nil
-
-    // 3. Map that key to current slot.
-    keys[lastSlotKey] = UInt8(targetSlot)
-
-    // 4. Clear input key.
+    // Free the child slot and unmap the key. We deliberately do NOT compact the
+    // child array: every reader (child(at:), withChildRef, the shrink/clone
+    // copies) goes through the key→slot map, and addChild's findFreeSlot reuses
+    // holes — so compacting would only buy an O(256) reverse-lookup per delete.
+    childs[targetSlot] = nil
     keys[index] = 0xFF
-
-    // 5. Reduce number of children.
     count -= 1
 
-    // 6. Shrink the node to Node16 if needed.
+    // Shrink the node to Node16 if needed.
     if count == 13 {
       let newNode = Node16.allocate(copyFrom: self)
       return .replaceWith(newNode.node.rawNode)
