@@ -130,6 +130,12 @@ extension Node48: InternalNode {
     return slot == 0xFF ? nil : childs[Int(slot)]
   }
 
+  func childOpaque(forKey k: KeyPart) -> UnsafeMutableRawPointer? {
+    let slot = keys[Int(k)]
+    if slot == 0xFF { return nil }
+    return UnsafeRawPointer(childs.baseAddress! + Int(slot)).loadUnaligned(as: UnsafeMutableRawPointer?.self)
+  }
+
   mutating func addChild(forKey k: KeyPart, node: RawNode) -> UpdateResult<RawNode?> {
     if count < Self.numKeys {
       assert(keys[Int(k)] == 0xFF, "node for key \(k) already exists")

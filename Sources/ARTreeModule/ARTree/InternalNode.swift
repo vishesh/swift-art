@@ -19,6 +19,10 @@ protocol InternalNode<Spec>: ARTNode {
   func child(forKey: KeyPart) -> RawNode?  // TODO: Remove
   func child(at: Index) -> RawNode?  // TODO: Remove
 
+  // Read-path child lookup: returns the child buffer as an unretained opaque
+  // pointer (no ARC traffic), or nil if absent. Caller must keep the tree alive.
+  func childOpaque(forKey: KeyPart) -> UnsafeMutableRawPointer?
+
   mutating func addChild(forKey: KeyPart, node: RawNode) -> UpdateResult<RawNode?>
   mutating func addChild(forKey: KeyPart, node: some ARTNode<Spec>) -> UpdateResult<RawNode?>
 

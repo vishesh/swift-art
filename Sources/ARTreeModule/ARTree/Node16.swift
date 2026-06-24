@@ -143,6 +143,11 @@ extension Node16: InternalNode {
     return childs[index]
   }
 
+  func childOpaque(forKey k: KeyPart) -> UnsafeMutableRawPointer? {
+    guard let index = index(forKey: k) else { return nil }
+    return UnsafeRawPointer(childs.baseAddress! + index).loadUnaligned(as: UnsafeMutableRawPointer?.self)
+  }
+
   mutating func addChild(forKey k: KeyPart, node: RawNode) -> UpdateResult<RawNode?> {
     if let slot = _insertSlot(forKey: k) {
       // `slot == count` is an append; `keys[slot]` there is unused/stale (removeChild

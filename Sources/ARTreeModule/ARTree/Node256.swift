@@ -87,6 +87,10 @@ extension Node256: InternalNode {
     return childs[Int(k)]
   }
 
+  func childOpaque(forKey k: KeyPart) -> UnsafeMutableRawPointer? {
+    return UnsafeRawPointer(childs.baseAddress! + Int(k)).loadUnaligned(as: UnsafeMutableRawPointer?.self)
+  }
+
   mutating func addChild(forKey k: KeyPart, node: RawNode) -> UpdateResult<RawNode?> {
     assert(childs[Int(k)] == nil, "node for key \(k) already exists")
     childs[Int(k)] = node
