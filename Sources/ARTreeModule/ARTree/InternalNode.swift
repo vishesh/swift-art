@@ -105,16 +105,23 @@ extension InternalNode {
   }
 
   func prefixMismatch(withKey key: UnsafeRawBufferPointer, fromIndex depth: Int) -> Int {
-    assert(partialLength <= Const.maxPartialLength, "partial length is always bounded")
-    let maxComp = min(partialLength, key.count - depth)
+    // Read the header once and compare prefix bytes directly. Going through the
+    // `partialBytes` property here would copy the whole 8-byte FixedArray (and
+    // re-enter the storage closure) on every compared byte.
+    return storage.withHeaderPointer { header in
+      let partialLength = Int(header.pointee.partialLength)
+      assert(partialLength <= Const.maxPartialLength, "partial length is always bounded")
+      let maxComp = min(partialLength, key.count - depth)
 
-    for index in 0..<maxComp {
-      if partialBytes[index] != key[depth + index] {
-        return index
+      return withUnsafeBytes(of: &header.pointee.partialBytes) { partial in
+        for index in 0..<maxComp {
+          if partial[index] != key[depth + index] {
+            return index
+          }
+        }
+        return maxComp
       }
     }
-
-    return maxComp
   }
 
   // TODO: Look everywhere its used, and try to avoid unnecessary RC traffic.

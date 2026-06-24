@@ -40,13 +40,14 @@ extension ARTreeImpl {
   private func _descend<N: InternalNode<Spec>>(
     _ node: N, _ key: UnsafeRawBufferPointer, _ depth: inout Int
   ) -> RawNode? {
-    if node.partialLength > 0 {
+    let partialLength = node.partialLength
+    if partialLength > 0 {
       let prefixLen = node.prefixMismatch(withKey: key, fromIndex: depth)
       assert(prefixLen <= Const.maxPartialLength, "partial length is always bounded")
-      if prefixLen != node.partialLength {
+      if prefixLen != partialLength {
         return nil
       }
-      depth += node.partialLength
+      depth += partialLength
     }
 
     let child = node.child(forKey: key[depth])

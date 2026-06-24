@@ -43,10 +43,11 @@ extension ARTreeImpl {
     var node: any InternalNode<Spec> = child!.toInternalNode()
     var newDepth = depth
 
-    if node.partialLength > 0 {
+    let partialLength = node.partialLength
+    if partialLength > 0 {
       let matchedBytes = node.prefixMismatch(withKey: key, fromIndex: depth)
-      assert(matchedBytes <= node.partialLength)
-      if matchedBytes < node.partialLength {
+      assert(matchedBytes <= partialLength)
+      if matchedBytes < partialLength {
         // Key diverges from this node's prefix, so it isn't present.
         return .noop
       }
