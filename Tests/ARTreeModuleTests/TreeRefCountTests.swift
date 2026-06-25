@@ -35,12 +35,10 @@ final class ARTreeRefCountTest: CollectionTestCase {
     t!.insert(key: [1, 2, 3], value: 10)
     t!.insert(key: [2, 4, 4], value: 20)
 
-    expectEqual(_getRetainCount(t!._root!.buf), 2)
-    var n4 = t!._root
-    expectEqual(_getRetainCount(n4!.buf), 3)
+    var n4 = t!._root!
+    expectFalse(isKnownUniquelyReferenced(&n4.buf))
     t = nil
-    expectEqual(_getRetainCount(n4!.buf), 2)
-    n4 = nil
+    expectTrue(isKnownUniquelyReferenced(&n4.buf))
   }
 
   @Test func testRefCountNode16() throws {
@@ -52,31 +50,30 @@ final class ARTreeRefCountTest: CollectionTestCase {
     t!.insert(key: [4, 4, 4], value: 40)
     t!.insert(key: [5, 4, 4], value: 50)
 
-    expectEqual(_getRetainCount(t!._root!.buf), 2)
-    var n4 = t!._root
-    expectEqual(_getRetainCount(n4!.buf), 3)
+    var n4 = t!._root!
+    expectFalse(isKnownUniquelyReferenced(&n4.buf))
     t = nil
-    expectEqual(_getRetainCount(n4!.buf), 2)
-    n4 = nil
+    expectTrue(isKnownUniquelyReferenced(&n4.buf))
   }
 
   @Test func testRefCountStorage() throws {
     typealias Tree = ARTree<Int>
     let node = Node4<Tree.Spec>.allocate()
-    let ref = node.ref
-    let count0 = _getRetainCount(ref)
+    var ref = node.ref
+    expectFalse(isKnownUniquelyReferenced(&ref))
 
     let a = node.node
-    let count1 = _getRetainCount(ref)
-    expectEqual(count1, count0)
+    expectFalse(isKnownUniquelyReferenced(&ref))
 
     let b = node.node
-    let count2 = _getRetainCount(ref)
-    expectEqual(count2, count1)
+    expectFalse(isKnownUniquelyReferenced(&ref))
 
-    let c = node.node.rawNode
-    let count3 = _getRetainCount(ref)
-    expectEqual(count3, count2 + 1)
+    var c = node.node.rawNode
+    expectFalse(isKnownUniquelyReferenced(&ref))
+    c = RawNode(buf: Node4<Tree.Spec>.allocate().ref)
+    withExtendedLifetime(node) {
+      expectFalse(isKnownUniquelyReferenced(&ref))
+    }
 
     _ = (a, b, c) // FIXME: to suppress warning
   }

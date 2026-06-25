@@ -31,6 +31,13 @@ extension NodeLeaf {
 extension NodeLeaf {
   typealias KeyPtr = UnsafeMutableBufferPointer<KeyPart>
 
+  func withKeyBytes<R>(body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
+    return try storage.withUnsafePointer {
+      let keyStart = $0.advanced(by: MemoryLayout<UInt32>.stride)
+      return try body(UnsafeRawBufferPointer(start: keyStart, count: Int(keyLength)))
+    }
+  }
+
   func withKey<R>(body: (KeyPtr) throws -> R) rethrows -> R {
     return try storage.withUnsafePointer {
       let keyPtr = UnsafeMutableBufferPointer(
@@ -67,7 +74,7 @@ extension NodeLeaf {
   }
 
   var key: Key {
-    withKey { k in Array(k) }
+    withKeyBytes { Array($0) }
   }
 
   var keyLength: Int {
@@ -98,13 +105,12 @@ extension NodeLeaf {
       return false
     }
 
-    return withKey { keyPtr in
+    return withKeyBytes { storedKey in
       for ii in depth..<key.count {
-        if key[ii] != keyPtr[ii] {
+        if key[ii] != storedKey[ii] {
           return false
         }
       }
-
       return true
     }
   }
@@ -135,6 +141,6 @@ extension NodeLeaf: ARTNode {
   }
 
   func clone() -> NodeStorage<Self> {
-    return Self.allocate(key: key, value: value)
+    return withKeyBytes { Self.allocate(keyBytes: $0, value: value) }
   }
 }

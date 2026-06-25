@@ -32,7 +32,7 @@ extension Node48 {
 
     storage.update { newNode in
       UnsafeMutableRawPointer(newNode.keys.baseAddress!)
-        .bindMemory(to: UInt8.self, capacity: Self.numKeys)
+        .bindMemory(to: UInt8.self, capacity: 256)
       UnsafeMutableRawPointer(newNode.childs.baseAddress!)
         .bindMemory(to: RawNode?.self, capacity: Self.numKeys)
 

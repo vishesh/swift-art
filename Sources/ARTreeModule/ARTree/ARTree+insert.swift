@@ -3,8 +3,8 @@ extension ARTreeImpl {
   fileprivate enum InsertAction {
     case replace(NodeLeaf<Spec>)
     case splitLeaf(NodeLeaf<Spec>, depth: Int)
-    case splitNode(any InternalNode<Spec>, depth: Int, prefixDiff: Int)
-    case insertInto(any InternalNode<Spec>, depth: Int)
+    case splitNode(RawNode, depth: Int, prefixDiff: Int)
+    case insertInto(RawNode, depth: Int)
   }
 
   @discardableResult
@@ -56,25 +56,28 @@ extension ARTreeImpl {
 
       ref.pointee = newNode.rawNode  // Replace child in parent.
 
-    case .splitNode(var node, let depth, let prefixDiff):
+    case .splitNode(let rawNode, let depth, let prefixDiff):
+      let partialBytes = Self._partialBytes(rawNode)
       var newNode = Node4<Spec>.allocate()
       newNode.partialLength = prefixDiff
-      newNode.partialBytes = node.partialBytes  // TODO: Just copy min(maxPartialLength, prefixDiff)
+      newNode.partialBytes = partialBytes  // TODO: Just copy min(maxPartialLength, prefixDiff)
 
       assert(
-        node.partialLength <= Const.maxPartialLength,
+        Self._partialLength(rawNode) <= Const.maxPartialLength,
         "partial length is always bounded")
-      _ = newNode.addChild(forKey: node.partialBytes[prefixDiff], node: node)
-      node.partialBytes.shiftLeft(toIndex: prefixDiff + 1)
-      node.partialLength -= prefixDiff + 1
+      _ = newNode.addChild(forKey: partialBytes[prefixDiff], node: rawNode)
+      Self._dropPrefix(rawNode, through: prefixDiff)
 
       let newLeaf = Self.allocateLeaf(keyBytes: key, value: value)
       _ = newNode.addChild(forKey: key[depth + prefixDiff], node: newLeaf)
       ref.pointee = newNode.rawNode
 
-    case .insertInto(var node, let depth):
-      Self.allocateLeaf(keyBytes: key, value: value).read { newLeaf in
-        if case .replaceWith(let newNode) = node.addChild(forKey: key[depth], node: newLeaf) {
+    case .insertInto(let rawNode, let depth):
+      let newLeaf = Self.allocateLeaf(keyBytes: key, value: value)
+      newLeaf.read { leaf in
+        if case .replaceWith(let newNode) = Self._addChild(
+          to: rawNode, forKey: key[depth], node: leaf.rawNode)
+        {
           ref.pointee = newNode
         }
       }
@@ -122,9 +125,9 @@ extension ARTreeImpl {
 
       switch step {
       case .splitNode(let prefixDiff):
-        return (.splitNode(current.toInternalNode(), depth: depth, prefixDiff: prefixDiff), ref)
+        return (.splitNode(current, depth: depth, prefixDiff: prefixDiff), ref)
       case .insertInto:
-        return (.insertInto(current.toInternalNode(), depth: depth), ref)
+        return (.insertInto(current, depth: depth), ref)
       case .descend(let child, let childUnique):
         depth += 1
         current = child
@@ -207,5 +210,73 @@ extension ARTreeImpl {
     -> NodeStorage<NodeLeaf<Spec>>
   {
     return NodeLeaf<Spec>.allocate(keyBytes: key, value: value)
+  }
+
+  @inline(__always)
+  private static func _partialLength(_ rawNode: RawNode) -> Int {
+    switch rawNode.type {
+    case .node4: return Node4<Spec>(buffer: rawNode.buf).partialLength
+    case .node16: return Node16<Spec>(buffer: rawNode.buf).partialLength
+    case .node48: return Node48<Spec>(buffer: rawNode.buf).partialLength
+    case .node256: return Node256<Spec>(buffer: rawNode.buf).partialLength
+    case .leaf: preconditionFailure("leaf nodes have no internal prefix")
+    }
+  }
+
+  @inline(__always)
+  private static func _partialBytes(_ rawNode: RawNode) -> PartialBytes {
+    switch rawNode.type {
+    case .node4: return Node4<Spec>(buffer: rawNode.buf).partialBytes
+    case .node16: return Node16<Spec>(buffer: rawNode.buf).partialBytes
+    case .node48: return Node48<Spec>(buffer: rawNode.buf).partialBytes
+    case .node256: return Node256<Spec>(buffer: rawNode.buf).partialBytes
+    case .leaf: preconditionFailure("leaf nodes have no internal prefix")
+    }
+  }
+
+  @inline(__always)
+  private static func _dropPrefix(_ rawNode: RawNode, through prefixDiff: Int) {
+    switch rawNode.type {
+    case .node4:
+      var node = Node4<Spec>(buffer: rawNode.buf)
+      node.partialBytes.shiftLeft(toIndex: prefixDiff + 1)
+      node.partialLength -= prefixDiff + 1
+    case .node16:
+      var node = Node16<Spec>(buffer: rawNode.buf)
+      node.partialBytes.shiftLeft(toIndex: prefixDiff + 1)
+      node.partialLength -= prefixDiff + 1
+    case .node48:
+      var node = Node48<Spec>(buffer: rawNode.buf)
+      node.partialBytes.shiftLeft(toIndex: prefixDiff + 1)
+      node.partialLength -= prefixDiff + 1
+    case .node256:
+      var node = Node256<Spec>(buffer: rawNode.buf)
+      node.partialBytes.shiftLeft(toIndex: prefixDiff + 1)
+      node.partialLength -= prefixDiff + 1
+    case .leaf:
+      preconditionFailure("leaf nodes have no internal prefix")
+    }
+  }
+
+  @inline(__always)
+  private static func _addChild(to rawNode: RawNode, forKey key: KeyPart, node child: RawNode)
+    -> UpdateResult<RawNode?>
+  {
+    switch rawNode.type {
+    case .node4:
+      var node = Node4<Spec>(buffer: rawNode.buf)
+      return node.addChild(forKey: key, node: child)
+    case .node16:
+      var node = Node16<Spec>(buffer: rawNode.buf)
+      return node.addChild(forKey: key, node: child)
+    case .node48:
+      var node = Node48<Spec>(buffer: rawNode.buf)
+      return node.addChild(forKey: key, node: child)
+    case .node256:
+      var node = Node256<Spec>(buffer: rawNode.buf)
+      return node.addChild(forKey: key, node: child)
+    case .leaf:
+      preconditionFailure("leaf nodes cannot accept children")
+    }
   }
 }
