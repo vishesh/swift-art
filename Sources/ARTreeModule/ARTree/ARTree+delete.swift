@@ -20,8 +20,22 @@ extension ARTreeImpl {
   }
 
   public mutating func deleteRange(start: Key, end: Key) {
-    // TODO
-    fatalError("not implemented")
+    // Collect raw key bytes to delete
+    var keysToDelete: [[UInt8]] = []
+    start.withUnsafeBytes { startBytes in
+      end.withUnsafeBytes { endBytes in
+        forEachInRange(lowerBytes: startBytes, upperBytes: endBytes) { keyBytes, _ in
+          keysToDelete.append(Array(keyBytes))
+        }
+      }
+    }
+
+    // Delete collected keys
+    for keyBytes in keysToDelete {
+      keyBytes.withUnsafeBytes { buffer in
+        delete(keyBytes: buffer)
+      }
+    }
   }
 
   private mutating func _delete(

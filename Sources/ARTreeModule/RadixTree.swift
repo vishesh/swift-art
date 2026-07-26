@@ -70,4 +70,19 @@ extension RadixTree {
   public mutating func removeValue(forKey key: Key) {
     key.withUnsafeBinaryComparableBytes { _tree.delete(keyBytes: $0) }
   }
+
+  /// Removes all key-value pairs whose keys are in the closed range [start, end].
+  ///
+  /// - Parameters:
+  ///   - start: The lower bound of the range (inclusive).
+  ///   - end: The upper bound of the range (inclusive).
+  /// - Complexity: O(`m` × `log n`) where `m` is the number of keys in the range
+  ///   and `n` is the total number of key-value pairs in the tree.
+  public mutating func removeValues(from start: Key, to end: Key) {
+    start.withUnsafeBinaryComparableBytes { startBytes in
+      end.withUnsafeBinaryComparableBytes { endBytes in
+        _tree.deleteRange(start: Array(startBytes), end: Array(endBytes))
+      }
+    }
+  }
 }
