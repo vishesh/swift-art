@@ -120,7 +120,7 @@ extension ARTreeImpl {
       case .node16: step = _insertStep(Node16<Spec>(buffer: current.buf), key, &depth, &ref)
       case .node48: step = _insertStep(Node48<Spec>(buffer: current.buf), key, &depth, &ref)
       case .node256: step = _insertStep(Node256<Spec>(buffer: current.buf), key, &depth, &ref)
-      case .leaf: preconditionFailure("leaf handled by loop condition")
+      case .leaf, .bucketLeaf: preconditionFailure("leaf handled by loop condition")
       }
 
       switch step {
@@ -203,12 +203,16 @@ extension ARTreeImpl {
 
 extension ARTreeImpl {
   static func allocateLeaf(key: Key, value: Value) -> NodeStorage<NodeLeaf<Spec>> {
+    // For now, keep using single-entry leaves to avoid breaking existing code
+    // TODO: Switch to bucket leaves once insert logic is updated
     return NodeLeaf<Spec>.allocate(key: key, value: value)
   }
 
   static func allocateLeaf(keyBytes key: UnsafeRawBufferPointer, value: Value)
     -> NodeStorage<NodeLeaf<Spec>>
   {
+    // For now, keep using single-entry leaves to avoid breaking existing code
+    // TODO: Switch to bucket leaves once insert logic is updated
     return NodeLeaf<Spec>.allocate(keyBytes: key, value: value)
   }
 
@@ -219,7 +223,7 @@ extension ARTreeImpl {
     case .node16: return Node16<Spec>(buffer: rawNode.buf).partialLength
     case .node48: return Node48<Spec>(buffer: rawNode.buf).partialLength
     case .node256: return Node256<Spec>(buffer: rawNode.buf).partialLength
-    case .leaf: preconditionFailure("leaf nodes have no internal prefix")
+    case .leaf, .bucketLeaf: preconditionFailure("leaf nodes have no internal prefix")
     }
   }
 
@@ -230,7 +234,7 @@ extension ARTreeImpl {
     case .node16: return Node16<Spec>(buffer: rawNode.buf).partialBytes
     case .node48: return Node48<Spec>(buffer: rawNode.buf).partialBytes
     case .node256: return Node256<Spec>(buffer: rawNode.buf).partialBytes
-    case .leaf: preconditionFailure("leaf nodes have no internal prefix")
+    case .leaf, .bucketLeaf: preconditionFailure("leaf nodes have no internal prefix")
     }
   }
 
@@ -253,7 +257,7 @@ extension ARTreeImpl {
       var node = Node256<Spec>(buffer: rawNode.buf)
       node.partialBytes.shiftLeft(toIndex: prefixDiff + 1)
       node.partialLength -= prefixDiff + 1
-    case .leaf:
+    case .leaf, .bucketLeaf:
       preconditionFailure("leaf nodes have no internal prefix")
     }
   }
@@ -275,7 +279,7 @@ extension ARTreeImpl {
     case .node256:
       var node = Node256<Spec>(buffer: rawNode.buf)
       return node.addChild(forKey: key, node: child)
-    case .leaf:
+    case .leaf, .bucketLeaf:
       preconditionFailure("leaf nodes cannot accept children")
     }
   }

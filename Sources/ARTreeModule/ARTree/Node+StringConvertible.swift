@@ -47,6 +47,8 @@ extension ARTNode {
     switch self.type {
     case .leaf:
       return (self as! NodeLeaf<Spec>).prettyPrint(depth: depth)
+    case .bucketLeaf:
+      return "BucketLeaf(count: \((self as! NodeBucketLeaf<Spec>).count))"
     case .node4:
       return (self as! Node4<Spec>).prettyPrint(depth: depth)
     case .node16:

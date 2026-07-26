@@ -53,7 +53,7 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
     case .node16: return Node16<Spec>(buffer: node.buf).startIndex
     case .node48: return Node48<Spec>(buffer: node.buf).startIndex
     case .node256: return Node256<Spec>(buffer: node.buf).startIndex
-    case .leaf: return 0
+    case .leaf, .bucketLeaf: return 0
     }
   }
 
@@ -65,6 +65,7 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
     case .node48: return Node48<Spec>(buffer: node.buf).endIndex
     case .node256: return Node256<Spec>(buffer: node.buf).endIndex
     case .leaf: return 0
+    case .bucketLeaf: return NodeBucketLeaf<Spec>(buffer: node.buf).count
     }
   }
 
@@ -76,6 +77,7 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
     case .node48: return Node48<Spec>(buffer: node.buf).index(after: index)
     case .node256: return Node256<Spec>(buffer: node.buf).index(after: index)
     case .leaf: return index + 1
+    case .bucketLeaf: return index + 1
     }
   }
 
@@ -86,7 +88,7 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
     case .node16: return Node16<Spec>(buffer: node.buf).child(at: index)
     case .node48: return Node48<Spec>(buffer: node.buf).child(at: index)
     case .node256: return Node256<Spec>(buffer: node.buf).child(at: index)
-    case .leaf: return nil
+    case .leaf, .bucketLeaf: return nil
     }
   }
 
