@@ -11,17 +11,25 @@
 typealias ARTree<Value> = ARTreeImpl<DefaultSpec<Value>>
 
 /// Implements a persistent Adaptive Radix Tree (ART).
+@usableFromInline
 internal struct ARTreeImpl<Spec: ARTreeSpec> {
   public typealias Spec = Spec
   public typealias Value = Spec.Value
 
   @usableFromInline
   internal var _root: RawNode?
+  @usableFromInline
   internal var version: Int
 
   @inlinable
   public init() {
     self._root = nil
     self.version = -1
+  }
+
+  @usableFromInline
+  internal init(_root: RawNode?, version: Int) {
+    self._root = _root
+    self.version = version
   }
 }

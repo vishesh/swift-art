@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/vishesh/GitHub/swift-art log --oneline -20)",
+      "Bash(find:*)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test:*)",
+      "Bash(cat:*)",
+      "Bash(swift build:*)",
+      "Bash(swift test:*)",
+      "Bash(.build/release/ARTBenchmarks:*)",
+      "Bash(jq:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

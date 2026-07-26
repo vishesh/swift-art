@@ -91,6 +91,13 @@ extension Node4: InternalNode {
     }
   }
 
+  func index(before index: Index) -> Index? {
+    if index > 0 && index <= count {
+      return index - 1
+    }
+    return nil
+  }
+
   func _insertSlot(forKey k: KeyPart) -> Int? {
     if count >= Self.numKeys {
       return nil

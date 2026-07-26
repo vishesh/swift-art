@@ -120,6 +120,20 @@ extension Node48: InternalNode {
     return 256
   }
 
+  func index(before index: Index) -> Index? {
+    if index <= 0 {
+      return nil
+    }
+
+    for idx in (0..<index).reversed() {
+      if keys[idx] != 0xFF {
+        return idx
+      }
+    }
+
+    return nil
+  }
+
   func child(at index: Index) -> RawNode? {
     assert(index < 256, "invalid index")
     let slot = Int(keys[index])

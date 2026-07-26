@@ -44,6 +44,10 @@ for (key, value) in dict {
 }
 ```
 
+## Thread Safety
+
+**This implementation is NOT thread-safe.** Concurrent access requires external synchronization. See [THREAD_SAFETY.md](THREAD_SAFETY.md) for details.
+
 ## Development
 
 ```

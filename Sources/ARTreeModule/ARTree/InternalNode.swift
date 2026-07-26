@@ -15,6 +15,7 @@ protocol InternalNode<Spec>: ARTNode {
 
   func index(forKey: KeyPart) -> Index?
   func index(after: Index) -> Index
+  func index(before: Index) -> Index?
 
   func child(forKey: KeyPart) -> RawNode?  // TODO: Remove
   func child(at: Index) -> RawNode?  // TODO: Remove

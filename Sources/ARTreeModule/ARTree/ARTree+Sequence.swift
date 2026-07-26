@@ -90,6 +90,7 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
     }
   }
 
+  @usableFromInline
   mutating func next() -> Element? {
     guard let leaf = nextLeaf() else { return nil }
     return (leaf.key, leaf.value)
@@ -97,6 +98,7 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
 
   // Next leaf in order, without materializing its key. The public iterator
   // decodes the key from the leaf bytes; `next()` above keeps the array form.
+  @usableFromInline
   mutating func nextLeaf() -> NodeLeaf<Spec>? {
     if let leaf = rootLeaf {
       rootLeaf = nil

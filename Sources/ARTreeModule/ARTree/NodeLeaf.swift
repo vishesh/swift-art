@@ -1,3 +1,4 @@
+@usableFromInline
 struct NodeLeaf<Spec: ARTreeSpec> {
   typealias Value = Spec.Value
   var storage: Storage

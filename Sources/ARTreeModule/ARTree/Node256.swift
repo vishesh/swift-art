@@ -81,6 +81,20 @@ extension Node256: InternalNode {
     return 256
   }
 
+  func index(before idx: Index) -> Index? {
+    if idx <= 0 {
+      return nil
+    }
+
+    for idx in (0..<idx).reversed() {
+      if childs[idx] != nil {
+        return idx
+      }
+    }
+
+    return nil
+  }
+
   func child(at index: Index) -> RawNode? {
     assert(index < 256, "maximum 256 childs allowed")
     return childs[index]

@@ -66,6 +66,7 @@ extension ARTreeImpl.Index {
 
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension ARTreeImpl.Index: Equatable {
+  @usableFromInline
   static func == (lhs: Self, rhs: Self) -> Bool {
     if case (let lhs?, let rhs?) = (lhs.current, rhs.current) {
       return lhs.equals(rhs)
@@ -77,6 +78,7 @@ extension ARTreeImpl.Index: Equatable {
 
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension ARTreeImpl.Index: Comparable {
+  @usableFromInline
   static func < (lhs: Self, rhs: Self) -> Bool {
     for ((_, idxL), (_, idxR)) in zip(lhs.path, rhs.path) {
       if idxL < idxR {

@@ -21,10 +21,15 @@ var _settings: [SwiftSetting] = defines.map { .define($0) }
 let package = Package(
   name: "swift-art",
   platforms: [
-    .macOS("13.3"), .iOS("16.4"), .watchOS("9.4"), .tvOS("16.4"),
+    .macOS("15.0"), .iOS("16.4"), .watchOS("9.4"), .tvOS("16.4"),
   ],
   products: [
     .library(name: "ARTreeModule", targets: ["ARTreeModule"]),
+    .executable(name: "Benchmarks", targets: ["Benchmarks"]),
+  ],
+  dependencies: [
+    .package(url: "https://github.com/apple/swift-collections", from: "1.1.0"),
+    .package(url: "https://github.com/apple/swift-collections-benchmark", from: "0.0.3"),
   ],
   targets: [
     // Test support library (shared assertion helpers, built on swift-testing).
@@ -49,6 +54,17 @@ let package = Package(
       name: "ARTreeModuleTests",
       dependencies: ["ARTreeModule", "_CollectionsTestSupport"],
       path: "Tests/ARTreeModuleTests",
+      swiftSettings: _settings),
+
+    // Benchmark executable
+    .executableTarget(
+      name: "Benchmarks",
+      dependencies: [
+        "ARTreeModule",
+        .product(name: "Collections", package: "swift-collections"),
+        .product(name: "CollectionsBenchmark", package: "swift-collections-benchmark"),
+      ],
+      path: "Benchmarks",
       swiftSettings: _settings),
   ]
 )
