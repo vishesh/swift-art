@@ -1,8 +1,8 @@
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension ARTreeImpl {
   fileprivate enum InsertAction {
-    case replace(RawNode)  // Changed to handle both leaf types
-    case splitLeaf(RawNode, depth: Int)  // Changed to handle both leaf types
+    case replace(NodeLeaf<Spec>)
+    case splitLeaf(NodeLeaf<Spec>, depth: Int)
     case splitNode(RawNode, depth: Int, prefixDiff: Int)
     case insertInto(RawNode, depth: Int)
   }
@@ -18,62 +18,22 @@ extension ARTreeImpl {
 
     switch action {
     case .replace(let leaf):
-      if leaf.type == .bucketLeaf {
-        var bucket = NodeBucketLeaf<Spec>(buffer: leaf.buf)
-        if let index = bucket.findIndex(for: key, depth: 0) {
-          bucket.withValue(at: index) { v in
-            v = value
-          }
-        }
-      } else {
-        let singleLeaf = NodeLeaf<Spec>(buffer: leaf.buf)
-        singleLeaf.withValue {
-          $0.pointee = value
-        }
+      leaf.withValue {
+        $0.pointee = value
       }
 
     case .splitLeaf(let leaf, let depth):
-      // For bucket leaves, try to insert first
-      if leaf.type == .bucketLeaf {
-        var bucket = NodeBucketLeaf<Spec>(buffer: leaf.buf)
-        if bucket.insertEntry(keyBytes: key, value: value, depth: depth) {
-          return true  // Successfully inserted
-        }
-        // Bucket is full, continue with split logic
-      }
       let newLeaf = Self.allocateLeaf(keyBytes: key, value: value)
-
-      // Calculate longest common prefix between old leaf and new key
-      var longestPrefix: Int
-      let existingByte: KeyPart
-
-      if leaf.type == .bucketLeaf {
-        let bucketLeaf = NodeBucketLeaf<Spec>(buffer: leaf.buf)
-        longestPrefix = bucketLeaf.withKeyBytes(at: 0) { existingKey in
-          var i = 0
-          let minLen = Swift.min(existingKey.count - depth, key.count - depth)
-          while i < minLen && existingKey[depth + i] == key[depth + i] {
-            i += 1
-          }
-          return i
-        }
-        existingByte = bucketLeaf.withKeyBytes(at: 0) { $0[depth + longestPrefix] }
-      } else {
-        let singleLeaf = NodeLeaf<Spec>(buffer: leaf.buf)
-        longestPrefix = singleLeaf.withKey { existingKey in
-          var i = 0
-          let minLen = Swift.min(existingKey.count - depth, key.count - depth)
-          while i < minLen && existingKey[depth + i] == key[depth + i] {
-            i += 1
-          }
-          return i
-        }
-        existingByte = singleLeaf.withKey { $0[depth + longestPrefix] }
+      var longestPrefix = newLeaf.read {
+        leaf.longestCommonPrefix(with: $0, fromIndex: depth)
       }
 
       var newNode = Node4<Spec>.allocate()
-      _ = newNode.addChild(forKey: existingByte, node: leaf)
-      _ = newNode.addChild(forKey: key[depth + longestPrefix], node: newLeaf)
+      let existingByte = leaf.withKey { $0[depth + longestPrefix] }
+      _ = newNode.addChild(forKey: existingByte, node: leaf.rawNode)
+      _ = newLeaf.read { newLeaf in
+        newNode.addChild(forKey: key[depth + longestPrefix], node: newLeaf.rawNode)
+      }
 
       // TODO: Flip the direction of node creation.
       // TODO: Optimization: Just set partialLength = longestPrefix, and look at minimum leaf for
@@ -111,15 +71,19 @@ extension ARTreeImpl {
       Self._dropPrefix(rawNode, through: prefixDiff)
 
       let newLeaf = Self.allocateLeaf(keyBytes: key, value: value)
-      _ = newNode.addChild(forKey: key[depth + prefixDiff], node: newLeaf)
+      _ = newLeaf.read { leaf in
+        newNode.addChild(forKey: key[depth + prefixDiff], node: leaf.rawNode)
+      }
       ref.pointee = newNode.rawNode
 
     case .insertInto(let rawNode, let depth):
       let newLeaf = Self.allocateLeaf(keyBytes: key, value: value)
-      if case .replaceWith(let newNode) = Self._addChild(
-        to: rawNode, forKey: key[depth], node: newLeaf)
-      {
-        ref.pointee = newNode
+      newLeaf.read { leaf in
+        if case .replaceWith(let newNode) = Self._addChild(
+          to: rawNode, forKey: key[depth], node: leaf.rawNode)
+        {
+          ref.pointee = newNode
+        }
       }
     }
 
@@ -142,7 +106,7 @@ extension ARTreeImpl {
     var current: RawNode = _root!
     var ref = NodeReference(&_root)
 
-    while (current.type != .leaf && current.type != .bucketLeaf) && depth < key.count {
+    while current.type != .leaf && depth < key.count {
       assert(
         !Const.testCheckUnique || isUnique,
         "unique path is expected in this test, depth=\(depth)")
@@ -160,7 +124,8 @@ extension ARTreeImpl {
       case .node16: step = _insertStep(Node16<Spec>(buffer: current.buf), key, &depth, &ref)
       case .node48: step = _insertStep(Node48<Spec>(buffer: current.buf), key, &depth, &ref)
       case .node256: step = _insertStep(Node256<Spec>(buffer: current.buf), key, &depth, &ref)
-      case .leaf, .bucketLeaf: preconditionFailure("leaf handled by loop condition")
+      case .leaf: preconditionFailure("leaf handled by loop condition")
+      case .bucketLeaf: preconditionFailure("bucket leaves not yet implemented")
       }
 
       switch step {
@@ -175,57 +140,30 @@ extension ARTreeImpl {
       }
     }
 
-    assert(current.type == .leaf || current.type == .bucketLeaf)
-    // Reached leaf, handle both single and bucket leaves
+    assert(current.type == .leaf)
+    // Reached a leaf. Now we're making it specific for single-entry leaves again.
     assert(
       !Const.testCheckUnique || isUnique,
       "unique path is expected in this test, depth=\(depth)")
 
-    if current.type == .bucketLeaf {
-      // Handle bucket leaf
-      let bucket = NodeBucketLeaf<Spec>(buffer: current.buf)
-      if bucket.findIndex(for: key, depth: depth) != nil {
-        // Key exists, replace value
-        if isUnique {
-          return (.replace(current), ref)
-        } else {
-          let clone = current.clone(spec: Spec.self)
-          ref.pointee = clone
-          return (.replace(clone), ref)
-        }
-      }
-
-      // Key doesn't exist, try to insert or split
+    let leaf: NodeLeaf<Spec> = current.toLeafNode()
+    if leaf.keyEquals(with: key) {
       if isUnique {
-        return (.splitLeaf(current, depth: depth), ref)
-      } else {
-        let clone = current.clone(spec: Spec.self)
-        ref.pointee = clone
-        return (.splitLeaf(clone, depth: depth), ref)
-      }
-    } else if current.type == .leaf {
-      // Handle single-entry leaf
-      let leaf: NodeLeaf<Spec> = current.toLeafNode()
-      if leaf.keyEquals(with: key) {
-        if isUnique {
-          return (.replace(current), ref)
-        } else {
-          let clone = leaf.clone()
-          ref.pointee = clone.node.rawNode
-          return (.replace(clone.node.rawNode), ref)
-        }
-      }
-
-      if isUnique {
-        return (.splitLeaf(current, depth: depth), ref)
+        return (.replace(leaf), ref)
       } else {
         let clone = leaf.clone()
         ref.pointee = clone.node.rawNode
-        return (.splitLeaf(clone.node.rawNode, depth: depth), ref)
+        return (.replace(clone.node), ref)
       }
     }
 
-    fatalError("unexpected state")
+    if isUnique {
+      return (.splitLeaf(leaf, depth: depth), ref)
+    } else {
+      let clone = leaf.clone()
+      ref.pointee = clone.node.rawNode
+      return (.splitLeaf(clone.node, depth: depth), ref)
+    }
   }
 
   private enum _InsertStep {
@@ -265,17 +203,14 @@ extension ARTreeImpl {
 }
 
 extension ARTreeImpl {
-  // Now returns a generic leaf (could be bucket or single)
-  static func allocateLeaf(key: Key, value: Value) -> RawNode {
-    // TEMPORARILY DISABLED: Use single leaves to isolate bucket issues
-    return NodeLeaf<Spec>.allocate(key: key, value: value).rawNode
-    // return NodeBucketLeaf<Spec>.allocate(key: key, value: value).rawNode
+  static func allocateLeaf(key: Key, value: Value) -> NodeStorage<NodeLeaf<Spec>> {
+    return NodeLeaf<Spec>.allocate(key: key, value: value)
   }
 
-  static func allocateLeaf(keyBytes key: UnsafeRawBufferPointer, value: Value) -> RawNode {
-    // TEMPORARILY DISABLED: Use single leaves to isolate bucket issues
-    return NodeLeaf<Spec>.allocate(keyBytes: key, value: value).rawNode
-    // return NodeBucketLeaf<Spec>.allocate(keyBytes: key, value: value).rawNode
+  static func allocateLeaf(keyBytes key: UnsafeRawBufferPointer, value: Value)
+    -> NodeStorage<NodeLeaf<Spec>>
+  {
+    return NodeLeaf<Spec>.allocate(keyBytes: key, value: value)
   }
 
   @inline(__always)
@@ -285,7 +220,8 @@ extension ARTreeImpl {
     case .node16: return Node16<Spec>(buffer: rawNode.buf).partialLength
     case .node48: return Node48<Spec>(buffer: rawNode.buf).partialLength
     case .node256: return Node256<Spec>(buffer: rawNode.buf).partialLength
-    case .leaf, .bucketLeaf: preconditionFailure("leaf nodes have no internal prefix")
+    case .leaf: preconditionFailure("leaf nodes have no internal prefix")
+    case .bucketLeaf: preconditionFailure("bucket leaves not yet implemented")
     }
   }
 
@@ -296,7 +232,8 @@ extension ARTreeImpl {
     case .node16: return Node16<Spec>(buffer: rawNode.buf).partialBytes
     case .node48: return Node48<Spec>(buffer: rawNode.buf).partialBytes
     case .node256: return Node256<Spec>(buffer: rawNode.buf).partialBytes
-    case .leaf, .bucketLeaf: preconditionFailure("leaf nodes have no internal prefix")
+    case .leaf: preconditionFailure("leaf nodes have no internal prefix")
+    case .bucketLeaf: preconditionFailure("bucket leaves not yet implemented")
     }
   }
 
@@ -319,8 +256,10 @@ extension ARTreeImpl {
       var node = Node256<Spec>(buffer: rawNode.buf)
       node.partialBytes.shiftLeft(toIndex: prefixDiff + 1)
       node.partialLength -= prefixDiff + 1
-    case .leaf, .bucketLeaf:
+    case .leaf:
       preconditionFailure("leaf nodes have no internal prefix")
+    case .bucketLeaf:
+      preconditionFailure("bucket leaves not yet implemented")
     }
   }
 
@@ -341,8 +280,10 @@ extension ARTreeImpl {
     case .node256:
       var node = Node256<Spec>(buffer: rawNode.buf)
       return node.addChild(forKey: key, node: child)
-    case .leaf, .bucketLeaf:
+    case .leaf:
       preconditionFailure("leaf nodes cannot accept children")
+    case .bucketLeaf:
+      preconditionFailure("bucket leaves not yet implemented")
     }
   }
 }
