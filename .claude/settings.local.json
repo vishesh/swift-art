@@ -15,7 +15,10 @@
       "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer timeout 10 swift test:*)",
       "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift:*)",
       "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer timeout 15 swift test:*)",
-      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer timeout 30 swift test:*)"
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer timeout 30 swift test:*)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer timeout 5 swift test:*)",
+      "Bash(swift test_bucket_debug.swift:*)",
+      "Bash(swift:*)"
     ],
     "deny": [],
     "ask": []

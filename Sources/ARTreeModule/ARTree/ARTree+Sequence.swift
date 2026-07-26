@@ -17,15 +17,15 @@ extension ARTreeImpl: Sequence {
     // Set when the whole tree is a single leaf (deletes can collapse the root to a
     // bare leaf). Yielded once, then cleared. Now stores RawNode to handle both types.
     private var rootLeaf: RawNode?
-    // For iterating through bucket leaves
-    private var bucketLeaf: NodeBucketLeaf<Spec>?
+    // For iterating through bucket leaves - store the raw node to keep it alive
+    private var bucketLeafNode: RawNode?
     private var bucketIndex: Int
 
     init(tree: ARTreeImpl<Spec>) {
       self.tree = tree
       self.path = []
       self.rootLeaf = nil
-      self.bucketLeaf = nil
+      self.bucketLeafNode = nil
       self.bucketIndex = 0
       guard let node = tree._root else { return }
 
@@ -100,7 +100,8 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
   @usableFromInline
   mutating func next() -> Element? {
     // Check if we're iterating through a bucket
-    if let bucket = bucketLeaf {
+    if let bucketNode = bucketLeafNode {
+      let bucket = NodeBucketLeaf<Spec>(buffer: bucketNode.buf)
       if bucketIndex < bucket.count {
         let key = bucket.key(at: bucketIndex)
         let value = bucket.value(at: bucketIndex)
@@ -108,7 +109,7 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
         return (key, value)
       } else {
         // Finished with this bucket
-        bucketLeaf = nil
+        bucketLeafNode = nil
         bucketIndex = 0
       }
     }
@@ -117,10 +118,16 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
     guard let leaf = nextLeaf() else { return nil }
 
     if leaf.type == .bucketLeaf {
-      // Start iterating through bucket
-      bucketLeaf = NodeBucketLeaf<Spec>(buffer: leaf.buf)
-      bucketIndex = 0
-      return next()  // Recursively get first entry
+      // Start iterating through bucket - store the RawNode
+      let bucket = NodeBucketLeaf<Spec>(buffer: leaf.buf)
+      if bucket.count > 0 {
+        bucketLeafNode = leaf
+        bucketIndex = 0
+        return next()  // Recursively get first entry
+      } else {
+        // Empty bucket, skip it and get next leaf
+        return next()
+      }
     } else {
       // Single leaf
       let singleLeaf = NodeLeaf<Spec>(buffer: leaf.buf)
