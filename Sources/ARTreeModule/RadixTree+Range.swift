@@ -23,6 +23,26 @@ extension RadixTree {
     }
   }
 
+  /// Returns the first key-value pair whose key is `>= lowerBound`, in ascending
+  /// key order (the successor-or-equal / "ceiling" entry), or `nil` if every key
+  /// is smaller.
+  ///
+  /// The descent is O(`k`) in the key's byte length and independent of the number
+  /// of entries — a comparison-based ordered map instead pays O(log n) key
+  /// comparisons, each re-scanning any shared prefix. This is the radix tree's
+  /// signature ordered operation.
+  public func firstEntry(from lowerBound: Key) -> (key: Key, value: Value)? {
+    var result: (key: Key, value: Value)?
+    lowerBound.withUnsafeBinaryComparableBytes { lo in
+      _tree.forEachFrom(lowerBytes: lo) { keyBytes, value in
+        result = (Key.fromBinaryComparableBytes(keyBytes), value)
+        return false  // stop at the first match
+      }
+      return  // keep the byte-accessor closure returning Void
+    }
+    return result
+  }
+
   /// Returns the key-value pairs whose key is in the closed range
   /// `[lowerBound, upperBound]`, in ascending key order.
   public func entries(from lowerBound: Key, to upperBound: Key) -> [(key: Key, value: Value)] {

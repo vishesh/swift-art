@@ -58,6 +58,7 @@ written as a Markdown table.
 .build/release/ARTBenchmarks shared-prefix Results/shared-prefix.md   # time, swept to 4M
 .build/release/ARTBenchmarks memory Results/memory.md                 # memory, bytes/element
 .build/release/ARTBenchmarks range Results/range.md                   # range-scan time
+.build/release/ARTBenchmarks ordered Results/ordered.md               # ordered queries vs all maps
 ```
 
 - **shared-prefix** — per-element lookup and build time. RadixTree's cost is flat
@@ -66,6 +67,11 @@ written as a Markdown table.
   each map (page-granular, approximate, but measured identically for both).
 - **range** — per-query time to scan a key window (`forEachEntry(from:to:)` vs a
   B-tree seek + forward scan).
+- **ordered** — the workload a radix tree is *for*: a bounded range scan and a
+  successor seek (`firstEntry(from:)`), timed against **all four** maps. The
+  hash maps (`Dictionary`, `TreeDictionary`) have no order, so an ordered query
+  degrades to a full O(n) scan — RadixTree's lead over them grows with `n`. Also
+  shows the honest RadixTree-vs-SortedDictionary (B-tree) comparison.
 
 ## 3. Profiling / flame graphs
 

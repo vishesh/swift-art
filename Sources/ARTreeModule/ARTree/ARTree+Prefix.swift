@@ -1,83 +1,66 @@
+// Prefix scan. Descend O(prefix length) to the single subtree whose keys all
+// begin with the search prefix, then emit that subtree wholesale — no per-leaf
+// prefix re-check, and no dependence on tree size beyond the descent.
+
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension ARTreeImpl {
-  /// Visit every (keyBytes, value) whose key starts with the given prefix.
+  // Visit every (keyBytes, value) whose key starts with `prefix`, ascending.
+  // `keyBytes` is valid only for the duration of the `body` call.
   func forEachWithPrefix(
     _ prefix: UnsafeRawBufferPointer,
     _ body: (UnsafeRawBufferPointer, Value) -> Void
   ) {
     guard let root = _root else { return }
-    _prefixVisit(root, prefix, 0, body)
+    withExtendedLifetime(root.buf) {
+      _ = _prefixVisit(root, prefix, depth: 0) {
+        body($0, $1)
+        return true
+      }
+    }
   }
 
   private func _prefixVisit(
-    _ node: RawNode,
-    _ searchPrefix: UnsafeRawBufferPointer,
-    _ depth: Int,
-    _ body: (UnsafeRawBufferPointer, Value) -> Void
-  ) {
+    _ node: RawNode, _ prefix: UnsafeRawBufferPointer, depth: Int,
+    _ body: (UnsafeRawBufferPointer, Value) -> Bool
+  ) -> Bool {
+    // The whole prefix is matched by the path down to here: everything below matches.
+    if depth >= prefix.count { return _emitSubtree(node, body) }
+
     if node.type == .leaf {
       let leaf = NodeLeaf<Spec>(buffer: node.buf)
-      leaf.withKeyValue { keyPtr, valuePtr in
+      return leaf.withKeyValue { keyPtr, valuePtr in
         let key = UnsafeRawBufferPointer(keyPtr)
-        // Check if key starts with searchPrefix
-        if key.count >= searchPrefix.count {
-          var matches = true
-          for i in 0..<searchPrefix.count {
-            if key[i] != searchPrefix[i] {
-              matches = false
-              break
-            }
-          }
-          if matches {
-            body(key, valuePtr.pointee)
-          }
+        if key.count < prefix.count { return true }
+        var i = depth
+        while i < prefix.count {
+          if key[i] != prefix[i] { return true }
+          i += 1
         }
+        return body(key, valuePtr.pointee)
       }
-      return
     }
 
     let inode: any InternalNode<Spec> = node.toInternalNode()
-    var newDepth = depth
+    var depth = depth
 
-    // Check if node's partial matches the search prefix
     let partialLength = inode.partialLength
     if partialLength > 0 {
-      let matchBytes = inode.prefixMismatch(withKey: searchPrefix, fromIndex: depth)
-
-      // If there's a mismatch before we match the partial completely
-      if matchBytes < partialLength {
-        // Check if we've at least matched the entire search prefix
-        if depth + matchBytes >= searchPrefix.count {
-          // We've matched the entire search prefix, continue to all children
-          newDepth = searchPrefix.count
-        } else {
-          // Mismatch before matching the full prefix - no matches in this subtree
-          return
-        }
-      } else {
-        // Full partial matched, advance by its length
-        newDepth += partialLength
+      let partial = inode.partialBytes
+      for i in 0..<partialLength {
+        // Prefix ends inside this node's partial and matched so far ⇒ all below match.
+        if depth >= prefix.count { return _emitSubtree(node, body) }
+        if partial[i] != prefix[depth] { return true }  // divergence ⇒ no matches here
+        depth += 1
       }
     }
 
-    if newDepth >= searchPrefix.count {
-      // We've matched the entire search prefix, visit all children
-      var index = inode.startIndex
-      let end = inode.endIndex
-      while index != end {
-        if let child = inode.child(at: index) {
-          _prefixVisit(child, searchPrefix, newDepth + 1, body)
-        }
-        index = inode.index(after: index)
-      }
-    } else if newDepth < searchPrefix.count {
-      // Still need to match more of the prefix
-      // Only proceed if we're still within bounds
-      let nextByte = searchPrefix[newDepth]
-      if let childIndex = inode.index(forKey: nextByte),
-         let child = inode.child(at: childIndex) {
-        _prefixVisit(child, searchPrefix, newDepth + 1, body)
-      }
+    if depth >= prefix.count { return _emitSubtree(node, body) }
+
+    guard let idx = inode.index(forKey: prefix[depth]),
+      let child = inode.child(at: idx)
+    else {
+      return true
     }
+    return _prefixVisit(child, prefix, depth: depth + 1, body)
   }
 }

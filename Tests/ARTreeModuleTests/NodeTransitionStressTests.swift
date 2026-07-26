@@ -1,6 +1,7 @@
 import Testing
-@testable import ARTreeModule
 import _CollectionsTestSupport
+
+@testable import ARTreeModule
 
 /// Stress tests focused on node type transitions under various conditions.
 /// These tests probe behavior at exact transition boundaries, with COW, and during cascading operations.
@@ -73,12 +74,14 @@ struct NodeTransitionStressTests {
     }
     expectEqual(tree._root?.type, .node48)
 
-    // Delete one to trigger Node48 -> Node16
-    tree.delete(key: [0])
+    // Node48 shrinks to Node16 at count == 13 (hysteresis), so delete down to 13.
+    for i in 0..<4 {
+      tree.delete(key: [UInt8(i)])
+    }
     expectEqual(tree._root?.type, .node16)
 
     // Verify all remaining
-    for i in 1..<17 {
+    for i in 4..<17 {
       expectEqual(tree.getValue(key: [UInt8(i)]), [UInt8(i)])
     }
   }
@@ -204,14 +207,18 @@ struct NodeTransitionStressTests {
 
     let tree2 = tree1  // Snapshot
 
-    // Shrink tree1 to Node4
+    // Node16 shrinks to Node4 at count == 3 (hysteresis, like the other node
+    // types), so delete down to 3 children to trigger it.
     tree1.delete(key: [4])
+    tree1.delete(key: [3])
     expectEqual(tree1._root?.type, .node4)
     expectEqual(tree2._root?.type, .node16)
 
     // Verify independence
     expectNil(tree1.getValue(key: [4]))
+    expectNil(tree1.getValue(key: [3]))
     expectEqual(tree2.getValue(key: [4]), [4])
+    expectEqual(tree2.getValue(key: [3]), [3])
   }
 
   @Test
@@ -261,7 +268,9 @@ struct NodeTransitionStressTests {
     expectEqual(snap3._root?.type, .node48)
 
     // Verify counts
-    var count1 = 0, count2 = 0, count3 = 0
+    var count1 = 0
+    var count2 = 0
+    var count3 = 0
     for _ in snap1 { count1 += 1 }
     for _ in snap2 { count2 += 1 }
     for _ in snap3 { count3 += 1 }
@@ -424,13 +433,16 @@ struct NodeTransitionStressTests {
     }
 
     // Verify each snapshot preserved its node type
-    expectEqual(trees[0]._root?.type, .node4)   // 4 keys
+    expectEqual(trees[0]._root?.type, .node4)  // 4 keys
     expectEqual(trees[1]._root?.type, .node16)  // 5 keys
     expectEqual(trees[2]._root?.type, .node48)  // 17 keys
-    expectEqual(trees[3]._root?.type, .node256) // 49 keys
+    expectEqual(trees[3]._root?.type, .node256)  // 49 keys
 
     // Verify counts
-    var count0 = 0, count1 = 0, count2 = 0, count3 = 0
+    var count0 = 0
+    var count1 = 0
+    var count2 = 0
+    var count3 = 0
     for _ in trees[0] { count0 += 1 }
     for _ in trees[1] { count1 += 1 }
     for _ in trees[2] { count2 += 1 }

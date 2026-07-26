@@ -20,7 +20,11 @@ extension ARTreeImpl {
         if type == .leaf {
           return node._withUnsafeGuaranteedRef { buf in
             let leaf = NodeLeaf<Spec>(buffer: buf)
-            return leaf.keyEquals(with: key) ? leaf.value : nil
+            // Bytes [0, depth) were verified during descent (this tree uses
+            // pessimistic path compression — no byte is skipped unchecked), so
+            // only the suffix needs comparing. On long shared-prefix keys that
+            // turns a full-key compare into a short one.
+            return leaf.keyEquals(with: key, depth: depth) ? leaf.value : nil
           }
         }
 

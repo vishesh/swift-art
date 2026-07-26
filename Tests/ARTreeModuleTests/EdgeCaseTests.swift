@@ -1,6 +1,7 @@
 import Testing
-@testable import ARTreeModule
 import _CollectionsTestSupport
+
+@testable import ARTreeModule
 
 /// Edge cases and boundary conditions not covered by existing tests.
 /// Focus on uncovering bugs at node transitions, prefix handling, and COW boundaries.
@@ -501,10 +502,12 @@ struct ARTreeEdgeCaseTests {
 
     let longPrefix: [UInt8] = Array(1..<20)
 
-    // Insert keys with and without long prefix
+    // Insert keys with and without long prefix. The distractor must be prefix-free
+    // w.r.t. the others (keys where one is a prefix of another are unsupported), so
+    // start it with a byte the shared prefix never uses.
     tree.insert(key: longPrefix + [1], value: [1])
     tree.insert(key: longPrefix + [2], value: [2])
-    tree.insert(key: [1, 2, 3], value: [99])  // Different prefix
+    tree.insert(key: [200, 1, 1], value: [99])  // Different prefix
 
     var count = 0
     longPrefix.withUnsafeBufferPointer { buffer in

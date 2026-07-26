@@ -27,6 +27,9 @@ extension ARTreeImpl {
       var longestPrefix = newLeaf.read {
         leaf.longestCommonPrefix(with: $0, fromIndex: depth)
       }
+      assert(
+        depth + longestPrefix < key.count && depth + longestPrefix < leaf.keyLength,
+        "keys must be prefix-free; one key is a prefix of another")
 
       var newNode = Node4<Spec>.allocate()
       let existingByte = leaf.withKey { $0[depth + longestPrefix] }
@@ -59,6 +62,9 @@ extension ARTreeImpl {
       ref.pointee = newNode.rawNode  // Replace child in parent.
 
     case .splitNode(let rawNode, let depth, let prefixDiff):
+      assert(
+        depth + prefixDiff < key.count,
+        "keys must be prefix-free; the inserted key is a prefix of an existing key")
       let partialBytes = Self._partialBytes(rawNode)
       var newNode = Node4<Spec>.allocate()
       newNode.partialLength = prefixDiff
@@ -125,7 +131,7 @@ extension ARTreeImpl {
       case .node48: step = _insertStep(Node48<Spec>(buffer: current.buf), key, &depth, &ref)
       case .node256: step = _insertStep(Node256<Spec>(buffer: current.buf), key, &depth, &ref)
       case .leaf: preconditionFailure("leaf handled by loop condition")
-        }
+      }
 
       switch step {
       case .splitNode(let prefixDiff):

@@ -57,6 +57,24 @@ func minPerElement(_ n: Int, iterations: Int, _ body: () -> Void) -> Double {
   return best / Double(n)
 }
 
+// Like `minPerElement`, but `setup` runs untimed before each timed `measured`
+// pass. Use for ops that consume or mutate a fresh input each run (e.g. deleting
+// from a uniquely-owned map, so no copy-on-write clone is charged to the op).
+func minPerElement<S>(
+  _ n: Int, iterations: Int, setup: () -> S, measured: (inout S) -> Void
+) -> Double {
+  var best = Double.infinity
+  for _ in 0..<iterations {
+    var s = setup()
+    let t0 = DispatchTime.now().uptimeNanoseconds
+    measured(&s)
+    let t1 = DispatchTime.now().uptimeNanoseconds
+    best = Swift.min(best, Double(t1 &- t0))
+    blackHole(s)
+  }
+  return best / Double(n)
+}
+
 // Current physical memory footprint of this process, in bytes (the number
 // Activity Monitor shows). Used as a before/after probe to attribute memory to a
 // data structure.

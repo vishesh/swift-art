@@ -6,10 +6,11 @@ extension RadixTree: Sequence {
     var _iter: ARTree<Value>.Iterator
 
     mutating public func next() -> Element? {
-      // Use the public next() method which handles both single and bucket leaves
       guard let (keyBytes, value) = _iter.next() else { return nil }
-      // Convert raw key bytes to the typed Key
-      return (Key.fromBinaryComparableBytes(keyBytes.withUnsafeBytes { $0 }), value)
+      // `keyBytes` is `[UInt8]`; decode via the array overload. (Do NOT pass
+      // `keyBytes.withUnsafeBytes { $0 }` — that escapes the buffer pointer past
+      // the closure; release then reuses the storage and the key decodes to zeros.)
+      return (Key.fromBinaryComparableBytes(keyBytes), value)
     }
   }
 

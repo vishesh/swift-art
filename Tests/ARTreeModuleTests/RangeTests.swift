@@ -73,6 +73,46 @@ final class RadixTreeRangeTests: CollectionTestCase {
     expectEqual(collected, [2, 3, 5, 8, 13])
   }
 
+  @Test func firstEntryFrom() {
+    let t = intTree([10, 20, 30, 40, 50])
+    expectEqual(t.firstEntry(from: 20)?.key, 20)  // exact hit
+    expectEqual(t.firstEntry(from: 25)?.key, 30)  // ceiling
+    expectEqual(t.firstEntry(from: 0)?.key, 10)  // before everything
+    expectEqual(t.firstEntry(from: 50)?.key, 50)  // last
+    expectTrue(t.firstEntry(from: 51) == nil)  // past the end
+    expectTrue(RadixTree<Int, Int>().firstEntry(from: 0) == nil)  // empty
+    expectEqual(t.firstEntry(from: 30)?.value, 60)
+  }
+
+  @Test func firstEntryStringCeiling() {
+    var t = RadixTree<String, Int>()
+    for (i, s) in ["apple", "apricot", "banana"].enumerated() { t[s] = i }
+    expectEqual(t.firstEntry(from: "ap")?.key, "apple")
+    expectEqual(t.firstEntry(from: "apq")?.key, "apricot")
+    expectEqual(t.firstEntry(from: "b")?.key, "banana")
+    expectTrue(t.firstEntry(from: "c") == nil)
+  }
+
+  @Test func firstEntryRandomizedAgainstSortedModel() {
+    var rng = SeededRNG(0x0BAD_F00D_1234_5678)
+    for _ in 0..<40 {
+      let n = Int.random(in: 0...300, using: &rng)
+      var present: Set<Int> = []
+      var guard0 = 0
+      while present.count < n && guard0 < 10_000 {
+        present.insert(Int.random(in: -2000...2000, using: &rng))
+        guard0 += 1
+      }
+      let sorted = Array(present).sorted()
+      let t = intTree(sorted)
+      for _ in 0..<20 {
+        let lo = Int.random(in: -2200...2200, using: &rng)
+        let expected = sorted.first { $0 >= lo }
+        expectEqual(t.firstEntry(from: lo)?.key, expected)
+      }
+    }
+  }
+
   @Test func randomizedAgainstSortedModel() {
     var rng = SeededRNG(0xCAFE_BABE_F00D_1234)
     for _ in 0..<60 {
