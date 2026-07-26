@@ -111,9 +111,30 @@ extension Node48: InternalNode {
   }
 
   func index(after index: Index) -> Index {
-    for idx: Int in index + 1..<256 {
-      if keys[idx] != 0xFF {
-        return idx
+    let startIdx = index + 1
+    if startIdx >= 256 { return 256 }
+
+    // Use SIMD to find next valid key (not 0xFF)
+    // Process 16 bytes at a time
+    let keysBase = keys.baseAddress!
+    let startChunk = startIdx / 16
+    let startOffset = startIdx % 16
+
+    for chunk in startChunk..<16 {  // 256 / 16 = 16 chunks
+      let offset = chunk * 16
+
+      // Load 16 keys and check for != 0xFF
+      let keyVec = UnsafeRawPointer(keysBase + offset).loadUnaligned(as: SIMD16<UInt8>.self)
+      let validMask = keyVec .!= SIMD16<UInt8>(repeating: 0xFF)
+
+      if any(validMask) {
+        // Find first valid key in this chunk
+        let searchStart = (chunk == startChunk) ? startOffset : 0
+        for i in searchStart..<16 {
+          if validMask[i] {
+            return offset + i
+          }
+        }
       }
     }
 
@@ -125,9 +146,29 @@ extension Node48: InternalNode {
       return nil
     }
 
-    for idx in (0..<index).reversed() {
-      if keys[idx] != 0xFF {
-        return idx
+    let endIdx = index - 1
+    let keysBase = keys.baseAddress!
+
+    // Use SIMD to find previous valid key (not 0xFF)
+    // Work backwards through chunks
+    let endChunk = endIdx / 16
+    let endOffset = endIdx % 16
+
+    for chunk in (0...endChunk).reversed() {
+      let offset = chunk * 16
+
+      // Load 16 keys and check for != 0xFF
+      let keyVec = UnsafeRawPointer(keysBase + offset).loadUnaligned(as: SIMD16<UInt8>.self)
+      let validMask = keyVec .!= SIMD16<UInt8>(repeating: 0xFF)
+
+      if any(validMask) {
+        // Find last valid key in this chunk
+        let searchEnd = (chunk == endChunk) ? endOffset : 15
+        for i in (0...searchEnd).reversed() {
+          if validMask[i] {
+            return offset + i
+          }
+        }
       }
     }
 
@@ -201,6 +242,9 @@ extension Node48: InternalNode {
   }
 
   private func findFreeSlot() -> Int? {
+    // Check slots linearly for nil - SIMD doesn't work well with pointers
+    // Since we only have 48 slots and this is called rarely (only on insert),
+    // the simple approach is fine
     for (index, child) in childs.enumerated() {
       if child == nil {
         return index

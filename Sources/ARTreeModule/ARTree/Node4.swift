@@ -71,11 +71,23 @@ extension Node4: InternalNode {
 
   func index(forKey k: KeyPart) -> Index? {
     let count = self.count
-    return storage.withBodyPointer {
-      let keys = $0.assumingMemoryBound(to: KeyPart.self)
-      for index in 0..<count {
-        if keys[index] == k {
-          return index
+    // Use SIMD4 for parallel comparison
+    return storage.withBodyPointer { rawPtr in
+      let keys = rawPtr.assumingMemoryBound(to: KeyPart.self)
+      // Load 4 keys as SIMD4 (even if count < 4, the extra slots are safe to read)
+      let keyVec = SIMD4<UInt8>(
+        keys[0],
+        count > 1 ? keys[1] : 0xFF,
+        count > 2 ? keys[2] : 0xFF,
+        count > 3 ? keys[3] : 0xFF
+      )
+      let searchKey = SIMD4<UInt8>(repeating: k)
+      let matches = keyVec .== searchKey
+
+      // Check matches only up to count
+      for idx in 0..<count {
+        if matches[idx] {
+          return idx
         }
       }
       return nil

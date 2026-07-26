@@ -132,13 +132,30 @@ extension Node16: InternalNode {
   }
 
   func _insertSlot(forKey k: KeyPart) -> Int? {
-    // TODO: Binary search.
     if count >= Self.numKeys {
       return nil
     }
 
+    // SIMD search for insertion position - find first key >= k
+    let keyVec = storage.withBodyPointer {
+      $0.loadUnaligned(as: SIMD16<UInt8>.self)
+    }
+    let searchKey = SIMD16<UInt8>(repeating: k)
+    let valid = Node16._laneIndices .< SIMD16<UInt8>(repeating: UInt8(count))
+
+    // Find keys that are >= k (or invalid slots which we treat as infinity)
+    let geq = (keyVec .>= searchKey) .| .!valid
+
+    if !any(geq .& valid) {
+      // All valid keys are less than k, insert at end
+      return count
+    }
+
+    // Find the first position where key >= k
+    // Convert mask to index by finding first true bit
+    let mask = geq.&(valid)
     for idx in 0..<count {
-      if keys[idx] >= Int(k) {
+      if mask[idx] {
         return idx
       }
     }

@@ -65,6 +65,7 @@ let package = Package(
         .product(name: "CollectionsBenchmark", package: "swift-collections-benchmark"),
       ],
       path: "Benchmarks",
+      exclude: ["Package.swift", "Package.resolved", ".build", "Results", "README.md", ".gitignore"],
       swiftSettings: _settings),
   ]
 )

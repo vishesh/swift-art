@@ -8,7 +8,10 @@
       "Bash(swift build:*)",
       "Bash(swift test:*)",
       "Bash(.build/release/ARTBenchmarks:*)",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Bash(git commit:*)",
+      "Bash(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
