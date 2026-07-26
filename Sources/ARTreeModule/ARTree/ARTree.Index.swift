@@ -6,6 +6,7 @@ extension ARTreeImpl {
     internal weak var root: RawNodeBuffer? = nil
     internal var current: (any ARTNode<Spec>)? = nil
     internal var path: [(any InternalNode<Spec>, _ChildIndex)] = []
+    internal var bucketIndex: Int = 0  // Index within a bucket leaf
     internal let version: Int
 
     internal init(forTree tree: ARTreeImpl<Spec>) {
@@ -17,6 +18,7 @@ extension ARTreeImpl {
         // a leaf root (no Collection conformance uses it today).
         self.root = root.buf
         self.current = root.toARTNode()
+        self.bucketIndex = 0
       }
     }
   }
@@ -26,7 +28,7 @@ extension ARTreeImpl {
 extension ARTreeImpl.Index {
   internal var isOnLeaf: Bool {
     if let current = self.current {
-      return current.type == .leaf
+      return current.type == .leaf || current.type == .bucketLeaf
     }
 
     return false
@@ -68,11 +70,13 @@ extension ARTreeImpl.Index {
 extension ARTreeImpl.Index: Equatable {
   @usableFromInline
   static func == (lhs: Self, rhs: Self) -> Bool {
-    if case (let lhs?, let rhs?) = (lhs.current, rhs.current) {
-      return lhs.equals(rhs)
+    // First check if both have the same current node
+    if case (let lhsNode?, let rhsNode?) = (lhs.current, rhs.current) {
+      // Check if nodes are equal and bucket indices match
+      return lhsNode.equals(rhsNode) && lhs.bucketIndex == rhs.bucketIndex
     }
 
-    return false
+    return lhs.current == nil && rhs.current == nil
   }
 }
 
@@ -80,6 +84,7 @@ extension ARTreeImpl.Index: Equatable {
 extension ARTreeImpl.Index: Comparable {
   @usableFromInline
   static func < (lhs: Self, rhs: Self) -> Bool {
+    // Compare paths first
     for ((_, idxL), (_, idxR)) in zip(lhs.path, rhs.path) {
       if idxL < idxR {
         return true
@@ -88,6 +93,14 @@ extension ARTreeImpl.Index: Comparable {
       }
     }
 
-    return false
+    // If paths are equal but one is longer, shorter path comes first
+    if lhs.path.count < rhs.path.count {
+      return true
+    } else if lhs.path.count > rhs.path.count {
+      return false
+    }
+
+    // Same path, compare bucket indices
+    return lhs.bucketIndex < rhs.bucketIndex
   }
 }

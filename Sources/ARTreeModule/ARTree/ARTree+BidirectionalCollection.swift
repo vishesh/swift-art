@@ -26,6 +26,13 @@ extension ARTreeImpl: BidirectionalCollection {
       return (leaf.key, leaf.value)  // No labels to match Sequence Element type
     }
 
+    if current.type == .bucketLeaf {
+      let bucket = NodeBucketLeaf<Spec>(buffer: current.rawNode.buf)
+      let index = position.bucketIndex
+      precondition(index < bucket.count, "Bucket index out of bounds")
+      return (bucket.key(at: index), bucket.value(at: index))
+    }
+
     preconditionFailure("Index not at a leaf")
   }
 
@@ -47,6 +54,16 @@ extension ARTreeImpl.Index {
   // Advance to the next leaf in order
   mutating func advance() {
     if isOnLeaf {
+      // Check if we're in a bucket leaf and can advance within it
+      if let current = current, current.type == .bucketLeaf {
+        let bucket = NodeBucketLeaf<Spec>(buffer: current.rawNode.buf)
+        bucketIndex += 1
+        if bucketIndex < bucket.count {
+          return  // Stay in the same bucket
+        }
+        // Finished with bucket, move to next sibling
+        bucketIndex = 0
+      }
       // Move to the next sibling
       ascendToNextBranch()
     } else if let current = current {
@@ -59,6 +76,15 @@ extension ARTreeImpl.Index {
 
   // Retreat to the previous leaf in order
   mutating func retreat() {
+    // Check if we're in a bucket leaf and can retreat within it
+    if let current = current, current.type == .bucketLeaf {
+      if bucketIndex > 0 {
+        bucketIndex -= 1
+        return  // Stay in the same bucket
+      }
+      // At the beginning of bucket, need to go to previous leaf
+    }
+
     if path.isEmpty {
       // At the beginning, can't go back
       current = nil
@@ -78,10 +104,18 @@ extension ARTreeImpl.Index {
         current = child.toARTNode()
         // Descend to rightmost leaf of this subtree
         descendToRightMostChild()
+        // If we landed on a bucket, position at last entry
+        if current?.type == .bucketLeaf {
+          let bucket = NodeBucketLeaf<Spec>(buffer: current!.rawNode.buf)
+          bucketIndex = bucket.count - 1
+        } else {
+          bucketIndex = 0
+        }
       }
     } else {
       // No previous sibling, continue ascending
       current = parent.rawNode.toARTNode()
+      bucketIndex = 0
       retreat()
     }
   }

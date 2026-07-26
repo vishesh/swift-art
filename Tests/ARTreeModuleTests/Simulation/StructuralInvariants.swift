@@ -101,6 +101,7 @@ func checkInvariants<Value: Equatable>(
 private func capacityOf(_ type: NodeType) -> Int {
   switch type {
   case .leaf: return 0
+  case .bucketLeaf: return 32  // Bucket leaves can store up to 32 entries
   case .node4: return 4
   case .node16: return 16
   case .node48: return 48

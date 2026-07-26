@@ -53,6 +53,30 @@ extension ARTreeImpl {
       return .replaceWith(nil)
     }
 
+    if child?.type == .bucketLeaf {
+      // Handle bucket leaf deletion
+      var bucket = NodeBucketLeaf<Spec>(buffer: child!.buf)
+      guard let index = bucket.findIndex(for: key, depth: depth) else {
+        return .noop  // Key not found
+      }
+
+      // If this is the only entry, remove the whole bucket
+      if bucket.count == 1 {
+        return .replaceWith(nil)
+      }
+
+      // Clone if not unique
+      if !isUniquePath {
+        let clone = bucket.clone()
+        child = clone.rawNode
+        bucket = clone.node
+      }
+
+      // Remove the entry
+      bucket.removeEntry(at: index)
+      return .noop  // Bucket still exists with remaining entries
+    }
+
     assert(!Const.testCheckUnique || isUniquePath, "unique path is expected in this test")
     var node: any InternalNode<Spec> = child!.toInternalNode()
     var newDepth = depth

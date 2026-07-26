@@ -275,27 +275,63 @@ extension NodeBucketLeaf {
 // MARK: - Mutations
 
 extension NodeBucketLeaf {
-  /// Insert or update entry at index
-  mutating func setEntry(at index: Int, key: Key, value: Value) {
-    key.withUnsafeBytes { setEntry(at: index, keyBytes: $0, value: value) }
+  /// Insert entry, maintaining sorted order
+  mutating func insertEntry(key: Key, value: Value, depth: Int = 0) -> Bool {
+    key.withUnsafeBytes { insertEntry(keyBytes: $0, value: value, depth: depth) }
   }
 
-  mutating func setEntry(at index: Int, keyBytes: UnsafeRawBufferPointer, value: Value) {
-    precondition(index <= count, "Index out of bounds")
-
-    if index < count && keyLengths[index] == keyBytes.count {
-      // Same key length - can update in place
-      let offset = entryOffset(at: index)
-      entryDataPtr.advanced(by: offset)
-        .copyMemory(from: keyBytes.baseAddress!, byteCount: keyBytes.count)
-      entryDataPtr.advanced(by: offset + keyBytes.count)
-        .assumingMemoryBound(to: Value.self)
-        .pointee = value
-    } else {
-      // Need to resize - this requires reallocation
-      // For now, we'll implement a simple version that works
-      fatalError("Entry resizing not yet implemented")
+  mutating func insertEntry(keyBytes: UnsafeRawBufferPointer, value: Value, depth: Int = 0) -> Bool {
+    if count >= Self.capacity {
+      return false  // Bucket is full, needs split
     }
+
+    let index = insertionIndex(for: keyBytes, depth: depth)
+
+    // Check if it's an update
+    if index < count {
+      let cmp = withKeyBytes(at: index) { entryKey in
+        compareKeys(keyBytes, entryKey, fromIndex: depth)
+      }
+      if cmp == 0 {
+        // Update existing value
+        let offset = entryOffset(at: index) + Int(keyLengths[index])
+        entryDataPtr.advanced(by: offset)
+          .assumingMemoryBound(to: Value.self)
+          .pointee = value
+        return true
+      }
+    }
+
+    // Calculate space needed for the new entry
+    let newEntrySize = keyBytes.count + MemoryLayout<Value>.stride
+
+    // Shift existing entries if needed
+    if index < count {
+      let currentOffset = entryOffset(at: index)
+      let remainingSize = entryOffset(at: count) - currentOffset
+
+      // Move data to make room
+      entryDataPtr.advanced(by: currentOffset + newEntrySize)
+        .copyMemory(from: entryDataPtr.advanced(by: currentOffset),
+                   byteCount: remainingSize)
+
+      // Shift key lengths
+      for i in ((index + 1)...count).reversed() {
+        keyLengths[i] = keyLengths[i - 1]
+      }
+    }
+
+    // Insert new entry
+    keyLengths[index] = UInt16(keyBytes.count)
+    let offset = entryOffset(at: index)
+    entryDataPtr.advanced(by: offset)
+      .copyMemory(from: keyBytes.baseAddress!, byteCount: keyBytes.count)
+    entryDataPtr.advanced(by: offset + keyBytes.count)
+      .assumingMemoryBound(to: Value.self)
+      .initialize(to: value)
+
+    count += 1
+    return true
   }
 
   /// Remove entry at index

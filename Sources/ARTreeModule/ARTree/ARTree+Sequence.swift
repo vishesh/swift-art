@@ -15,17 +15,22 @@ extension ARTreeImpl: Sequence {
     // specializes per node type instead of dispatching through a witness table.
     private var path: [_IterFrame]
     // Set when the whole tree is a single leaf (deletes can collapse the root to a
-    // bare leaf). Yielded once, then cleared.
-    private var rootLeaf: NodeLeaf<Spec>?
+    // bare leaf). Yielded once, then cleared. Now stores RawNode to handle both types.
+    private var rootLeaf: RawNode?
+    // For iterating through bucket leaves
+    private var bucketLeaf: NodeBucketLeaf<Spec>?
+    private var bucketIndex: Int
 
     init(tree: ARTreeImpl<Spec>) {
       self.tree = tree
       self.path = []
       self.rootLeaf = nil
+      self.bucketLeaf = nil
+      self.bucketIndex = 0
       guard let node = tree._root else { return }
 
-      if node.type == .leaf {
-        self.rootLeaf = node.toLeafNode()
+      if node.type == .leaf || node.type == .bucketLeaf {
+        self.rootLeaf = node
         return
       }
       let start = Self._startIndex(node)
@@ -94,14 +99,39 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
 
   @usableFromInline
   mutating func next() -> Element? {
+    // Check if we're iterating through a bucket
+    if let bucket = bucketLeaf {
+      if bucketIndex < bucket.count {
+        let key = bucket.key(at: bucketIndex)
+        let value = bucket.value(at: bucketIndex)
+        bucketIndex += 1
+        return (key, value)
+      } else {
+        // Finished with this bucket
+        bucketLeaf = nil
+        bucketIndex = 0
+      }
+    }
+
+    // Get next leaf (single or bucket)
     guard let leaf = nextLeaf() else { return nil }
-    return (leaf.key, leaf.value)
+
+    if leaf.type == .bucketLeaf {
+      // Start iterating through bucket
+      bucketLeaf = NodeBucketLeaf<Spec>(buffer: leaf.buf)
+      bucketIndex = 0
+      return next()  // Recursively get first entry
+    } else {
+      // Single leaf
+      let singleLeaf = NodeLeaf<Spec>(buffer: leaf.buf)
+      return (singleLeaf.key, singleLeaf.value)
+    }
   }
 
   // Next leaf in order, without materializing its key. The public iterator
   // decodes the key from the leaf bytes; `next()` above keeps the array form.
   @usableFromInline
-  mutating func nextLeaf() -> NodeLeaf<Spec>? {
+  mutating func nextLeaf() -> RawNode? {
     if let leaf = rootLeaf {
       rootLeaf = nil
       return leaf
@@ -121,10 +151,9 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
       }
 
       let child = Self._childAt(node, index)!
-      if child.type == .leaf {
-        let leaf: NodeLeaf<Spec> = child.toLeafNode()
+      if child.type == .leaf || child.type == .bucketLeaf {
         path[path.count - 1].index = Self._indexAfter(node, index)
-        return leaf
+        return child
       }
 
       path.append(_IterFrame(node: child, index: Self._startIndex(child)))

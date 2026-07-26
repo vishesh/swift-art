@@ -1,8 +1,8 @@
 @available(macOS 13.3, iOS 16.4, watchOS 9.4, tvOS 16.4, *)
 extension ARTreeImpl {
   fileprivate enum InsertAction {
-    case replace(NodeLeaf<Spec>)
-    case splitLeaf(NodeLeaf<Spec>, depth: Int)
+    case replace(RawNode)  // Changed to handle both leaf types
+    case splitLeaf(RawNode, depth: Int)  // Changed to handle both leaf types
     case splitNode(RawNode, depth: Int, prefixDiff: Int)
     case insertInto(RawNode, depth: Int)
   }
@@ -18,18 +18,60 @@ extension ARTreeImpl {
 
     switch action {
     case .replace(let leaf):
-      leaf.withValue {
-        $0.pointee = value
+      if leaf.type == .bucketLeaf {
+        var bucket = NodeBucketLeaf<Spec>(buffer: leaf.buf)
+        if let index = bucket.findIndex(for: key, depth: 0) {
+          bucket.withValue(at: index) { v in
+            v = value
+          }
+        }
+      } else {
+        let singleLeaf = NodeLeaf<Spec>(buffer: leaf.buf)
+        singleLeaf.withValue {
+          $0.pointee = value
+        }
       }
 
     case .splitLeaf(let leaf, let depth):
+      // For bucket leaves, try to insert first
+      if leaf.type == .bucketLeaf {
+        var bucket = NodeBucketLeaf<Spec>(buffer: leaf.buf)
+        if bucket.insertEntry(keyBytes: key, value: value, depth: depth) {
+          return true  // Successfully inserted
+        }
+        // Bucket is full, continue with split logic
+      }
       let newLeaf = Self.allocateLeaf(keyBytes: key, value: value)
-      var longestPrefix = newLeaf.read {
-        leaf.longestCommonPrefix(with: $0, fromIndex: depth)
+
+      // Calculate longest common prefix between old leaf and new key
+      var longestPrefix: Int
+      let existingByte: KeyPart
+
+      if leaf.type == .bucketLeaf {
+        let bucketLeaf = NodeBucketLeaf<Spec>(buffer: leaf.buf)
+        longestPrefix = bucketLeaf.withKeyBytes(at: 0) { existingKey in
+          var i = 0
+          let minLen = Swift.min(existingKey.count - depth, key.count - depth)
+          while i < minLen && existingKey[depth + i] == key[depth + i] {
+            i += 1
+          }
+          return i
+        }
+        existingByte = bucketLeaf.withKeyBytes(at: 0) { $0[depth + longestPrefix] }
+      } else {
+        let singleLeaf = NodeLeaf<Spec>(buffer: leaf.buf)
+        longestPrefix = singleLeaf.withKey { existingKey in
+          var i = 0
+          let minLen = Swift.min(existingKey.count - depth, key.count - depth)
+          while i < minLen && existingKey[depth + i] == key[depth + i] {
+            i += 1
+          }
+          return i
+        }
+        existingByte = singleLeaf.withKey { $0[depth + longestPrefix] }
       }
 
       var newNode = Node4<Spec>.allocate()
-      let existingByte = leaf.withKey { $0[depth + longestPrefix] }
       _ = newNode.addChild(forKey: existingByte, node: leaf)
       _ = newNode.addChild(forKey: key[depth + longestPrefix], node: newLeaf)
 
@@ -74,12 +116,10 @@ extension ARTreeImpl {
 
     case .insertInto(let rawNode, let depth):
       let newLeaf = Self.allocateLeaf(keyBytes: key, value: value)
-      newLeaf.read { leaf in
-        if case .replaceWith(let newNode) = Self._addChild(
-          to: rawNode, forKey: key[depth], node: leaf.rawNode)
-        {
-          ref.pointee = newNode
-        }
+      if case .replaceWith(let newNode) = Self._addChild(
+        to: rawNode, forKey: key[depth], node: newLeaf)
+      {
+        ref.pointee = newNode
       }
     }
 
@@ -102,7 +142,7 @@ extension ARTreeImpl {
     var current: RawNode = _root!
     var ref = NodeReference(&_root)
 
-    while current.type != .leaf && depth < key.count {
+    while (current.type != .leaf && current.type != .bucketLeaf) && depth < key.count {
       assert(
         !Const.testCheckUnique || isUnique,
         "unique path is expected in this test, depth=\(depth)")
@@ -135,30 +175,53 @@ extension ARTreeImpl {
       }
     }
 
-    assert(current.type == .leaf)
-    // Reached leaf already, replace it with a new node, or update the existing value.
-    if current.type == .leaf {
-      assert(
-        !Const.testCheckUnique || isUnique,
-        "unique path is expected in this test, depth=\(depth)")
+    assert(current.type == .leaf || current.type == .bucketLeaf)
+    // Reached leaf, handle both single and bucket leaves
+    assert(
+      !Const.testCheckUnique || isUnique,
+      "unique path is expected in this test, depth=\(depth)")
 
+    if current.type == .bucketLeaf {
+      // Handle bucket leaf
+      let bucket = NodeBucketLeaf<Spec>(buffer: current.buf)
+      if bucket.findIndex(for: key, depth: depth) != nil {
+        // Key exists, replace value
+        if isUnique {
+          return (.replace(current), ref)
+        } else {
+          let clone = current.clone(spec: Spec.self)
+          ref.pointee = clone
+          return (.replace(clone), ref)
+        }
+      }
+
+      // Key doesn't exist, try to insert or split
+      if isUnique {
+        return (.splitLeaf(current, depth: depth), ref)
+      } else {
+        let clone = current.clone(spec: Spec.self)
+        ref.pointee = clone
+        return (.splitLeaf(clone, depth: depth), ref)
+      }
+    } else if current.type == .leaf {
+      // Handle single-entry leaf
       let leaf: NodeLeaf<Spec> = current.toLeafNode()
       if leaf.keyEquals(with: key) {
         if isUnique {
-          return (.replace(leaf), ref)
+          return (.replace(current), ref)
         } else {
           let clone = leaf.clone()
           ref.pointee = clone.node.rawNode
-          return (.replace(clone.node), ref)
+          return (.replace(clone.node.rawNode), ref)
         }
       }
 
       if isUnique {
-        return (.splitLeaf(leaf, depth: depth), ref)
+        return (.splitLeaf(current, depth: depth), ref)
       } else {
         let clone = leaf.clone()
         ref.pointee = clone.node.rawNode
-        return (.splitLeaf(clone.node, depth: depth), ref)
+        return (.splitLeaf(clone.node.rawNode, depth: depth), ref)
       }
     }
 
@@ -202,18 +265,15 @@ extension ARTreeImpl {
 }
 
 extension ARTreeImpl {
-  static func allocateLeaf(key: Key, value: Value) -> NodeStorage<NodeLeaf<Spec>> {
-    // For now, keep using single-entry leaves to avoid breaking existing code
-    // TODO: Switch to bucket leaves once insert logic is updated
-    return NodeLeaf<Spec>.allocate(key: key, value: value)
+  // Now returns a generic leaf (could be bucket or single)
+  static func allocateLeaf(key: Key, value: Value) -> RawNode {
+    // Always create bucket leaves for better performance
+    return NodeBucketLeaf<Spec>.allocate(key: key, value: value).rawNode
   }
 
-  static func allocateLeaf(keyBytes key: UnsafeRawBufferPointer, value: Value)
-    -> NodeStorage<NodeLeaf<Spec>>
-  {
-    // For now, keep using single-entry leaves to avoid breaking existing code
-    // TODO: Switch to bucket leaves once insert logic is updated
-    return NodeLeaf<Spec>.allocate(keyBytes: key, value: value)
+  static func allocateLeaf(keyBytes key: UnsafeRawBufferPointer, value: Value) -> RawNode {
+    // Always create bucket leaves for better performance
+    return NodeBucketLeaf<Spec>.allocate(keyBytes: key, value: value).rawNode
   }
 
   @inline(__always)
