@@ -20,6 +20,7 @@ extension ARTreeImpl: Sequence {
     // For iterating through bucket leaves - store the raw node to keep it alive
     private var bucketLeafNode: RawNode?
     private var bucketIndex: Int
+    private var bucketCount: Int  // Store count when we start iterating
 
     init(tree: ARTreeImpl<Spec>) {
       self.tree = tree
@@ -27,6 +28,7 @@ extension ARTreeImpl: Sequence {
       self.rootLeaf = nil
       self.bucketLeafNode = nil
       self.bucketIndex = 0
+      self.bucketCount = 0
       guard let node = tree._root else { return }
 
       if node.type == .leaf || node.type == .bucketLeaf {
@@ -99,39 +101,45 @@ extension ARTreeImpl._Iterator: IteratorProtocol {
 
   @usableFromInline
   mutating func next() -> Element? {
-    // Check if we're iterating through a bucket
-    if let bucketNode = bucketLeafNode {
-      let bucket = NodeBucketLeaf<Spec>(buffer: bucketNode.buf)
-      if bucketIndex < bucket.count {
-        let key = bucket.key(at: bucketIndex)
-        let value = bucket.value(at: bucketIndex)
-        bucketIndex += 1
-        return (key, value)
-      } else {
-        // Finished with this bucket
-        bucketLeafNode = nil
-        bucketIndex = 0
+    // Loop until we find an element or run out of leaves
+    while true {
+      // Check if we're iterating through a bucket
+      if bucketLeafNode != nil {
+        if bucketIndex < bucketCount {
+          // Get the element from the current bucket
+          let bucket = NodeBucketLeaf<Spec>(buffer: bucketLeafNode!.buf)
+          let key = bucket.key(at: bucketIndex)
+          let value = bucket.value(at: bucketIndex)
+          bucketIndex += 1
+          return (key, value)
+        } else {
+          // Finished with this bucket
+          bucketLeafNode = nil
+          bucketIndex = 0
+          bucketCount = 0
+          // Continue to get next leaf
+        }
       }
-    }
 
-    // Get next leaf (single or bucket)
-    guard let leaf = nextLeaf() else { return nil }
+      // Get next leaf (single or bucket)
+      guard let leaf = nextLeaf() else { return nil }
 
-    if leaf.type == .bucketLeaf {
-      // Start iterating through bucket - store the RawNode
-      let bucket = NodeBucketLeaf<Spec>(buffer: leaf.buf)
-      if bucket.count > 0 {
-        bucketLeafNode = leaf
-        bucketIndex = 0
-        return next()  // Recursively get first entry
+      if leaf.type == .bucketLeaf {
+        // Start iterating through bucket - store the RawNode and count
+        let bucket = NodeBucketLeaf<Spec>(buffer: leaf.buf)
+        let count = bucket.count
+        if count > 0 {
+          bucketLeafNode = leaf
+          bucketIndex = 0
+          bucketCount = count  // Store count to avoid re-reading
+          // Loop will continue and return first entry
+        }
+        // Empty bucket - loop will continue to get next leaf
       } else {
-        // Empty bucket, skip it and get next leaf
-        return next()
+        // Single leaf - return immediately
+        let singleLeaf = NodeLeaf<Spec>(buffer: leaf.buf)
+        return (singleLeaf.key, singleLeaf.value)
       }
-    } else {
-      // Single leaf
-      let singleLeaf = NodeLeaf<Spec>(buffer: leaf.buf)
-      return (singleLeaf.key, singleLeaf.value)
     }
   }
 

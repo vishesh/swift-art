@@ -267,13 +267,15 @@ extension ARTreeImpl {
 extension ARTreeImpl {
   // Now returns a generic leaf (could be bucket or single)
   static func allocateLeaf(key: Key, value: Value) -> RawNode {
-    // Always create bucket leaves for better performance
-    return NodeBucketLeaf<Spec>.allocate(key: key, value: value).rawNode
+    // TEMPORARILY DISABLED: Use single leaves to isolate bucket issues
+    return NodeLeaf<Spec>.allocate(key: key, value: value).rawNode
+    // return NodeBucketLeaf<Spec>.allocate(key: key, value: value).rawNode
   }
 
   static func allocateLeaf(keyBytes key: UnsafeRawBufferPointer, value: Value) -> RawNode {
-    // Always create bucket leaves for better performance
-    return NodeBucketLeaf<Spec>.allocate(keyBytes: key, value: value).rawNode
+    // TEMPORARILY DISABLED: Use single leaves to isolate bucket issues
+    return NodeLeaf<Spec>.allocate(keyBytes: key, value: value).rawNode
+    // return NodeBucketLeaf<Spec>.allocate(keyBytes: key, value: value).rawNode
   }
 
   @inline(__always)

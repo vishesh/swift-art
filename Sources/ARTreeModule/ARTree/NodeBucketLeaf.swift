@@ -98,7 +98,9 @@ extension NodeBucketLeaf {
 // MARK: - Allocation
 
 extension NodeBucketLeaf {
-  /// Allocate an empty bucket leaf
+  /// Allocate an empty bucket leaf - FOR TESTING ONLY
+  /// Production code should always use allocate(key:value:) to ensure non-empty buckets
+  @available(*, deprecated, message: "Use allocate(key:value:) instead")
   static func allocate() -> NodeStorage<Self> {
     let initialSize = headerSize + 256  // Start with 256 bytes for entries
     let storage = NodeStorage<NodeBucketLeaf>.create(type: .bucketLeaf, size: initialSize)
