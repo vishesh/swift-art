@@ -40,6 +40,8 @@ extension RawNode {
       return NodeStorage<Node256<Spec>>(raw: buf).clone().rawNode
     case .leaf:
       return NodeStorage<NodeLeaf<Spec>>(raw: buf).clone().rawNode
+    case .bucketLeaf:
+      return NodeStorage<NodeBucketLeaf<Spec>>(raw: buf).clone().rawNode
     }
   }
 
@@ -68,10 +70,17 @@ extension RawNode {
     return NodeLeaf(buffer: buf)
   }
 
+  func toBucketLeafNode<Spec: ARTreeSpec>() -> NodeBucketLeaf<Spec> {
+    assert(type == .bucketLeaf)
+    return NodeBucketLeaf(buffer: buf)
+  }
+
   func toARTNode<Spec: ARTreeSpec>() -> any ARTNode<Spec> {
     switch type {
     case .leaf:
       return toLeafNode()
+    case .bucketLeaf:
+      return toBucketLeafNode()
     default:
       return toInternalNode()
     }
