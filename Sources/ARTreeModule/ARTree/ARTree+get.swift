@@ -24,16 +24,6 @@ extension ARTreeImpl {
           }
         }
 
-        if type == .bucketLeaf {
-          return node._withUnsafeGuaranteedRef { buf in
-            let bucket = NodeBucketLeaf<Spec>(buffer: buf)
-            if let index = bucket.findIndex(for: key, depth: depth) {
-              return bucket.value(at: index)
-            }
-            return nil
-          }
-        }
-
         // nil means the key is absent (prefix mismatch or no matching child).
         let next: UnsafeMutableRawPointer? = node._withUnsafeGuaranteedRef { buf in
           switch type {
@@ -41,7 +31,7 @@ extension ARTreeImpl {
           case .node16: return _descend(Node16<Spec>(buffer: buf), key, &depth)
           case .node48: return _descend(Node48<Spec>(buffer: buf), key, &depth)
           case .node256: return _descend(Node256<Spec>(buffer: buf), key, &depth)
-          case .leaf, .bucketLeaf: return nil  // handled above
+          case .leaf: return nil  // handled above
           }
         }
 

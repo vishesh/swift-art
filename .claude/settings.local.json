@@ -20,7 +20,8 @@
       "Bash(swift test_bucket_debug.swift:*)",
       "Bash(swift:*)",
       "Bash(git checkout:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []

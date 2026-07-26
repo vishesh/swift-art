@@ -6,7 +6,6 @@ extension ARTreeImpl {
     internal weak var root: RawNodeBuffer? = nil
     internal var current: (any ARTNode<Spec>)? = nil
     internal var path: [(any InternalNode<Spec>, _ChildIndex)] = []
-    internal var bucketIndex: Int = 0  // Index within a bucket leaf
     internal let version: Int
 
     internal init(forTree tree: ARTreeImpl<Spec>) {
@@ -18,7 +17,6 @@ extension ARTreeImpl {
         // a leaf root (no Collection conformance uses it today).
         self.root = root.buf
         self.current = root.toARTNode()
-        self.bucketIndex = 0
       }
     }
   }
@@ -28,7 +26,7 @@ extension ARTreeImpl {
 extension ARTreeImpl.Index {
   internal var isOnLeaf: Bool {
     if let current = self.current {
-      return current.type == .leaf || current.type == .bucketLeaf
+      return current.type == .leaf
     }
 
     return false
@@ -72,8 +70,8 @@ extension ARTreeImpl.Index: Equatable {
   static func == (lhs: Self, rhs: Self) -> Bool {
     // First check if both have the same current node
     if case (let lhsNode?, let rhsNode?) = (lhs.current, rhs.current) {
-      // Check if nodes are equal and bucket indices match
-      return lhsNode.equals(rhsNode) && lhs.bucketIndex == rhs.bucketIndex
+      // Check if nodes are equal
+      return lhsNode.equals(rhsNode)
     }
 
     return lhs.current == nil && rhs.current == nil
@@ -100,7 +98,7 @@ extension ARTreeImpl.Index: Comparable {
       return false
     }
 
-    // Same path, compare bucket indices
-    return lhs.bucketIndex < rhs.bucketIndex
+    // Same path, they are equal
+    return false
   }
 }

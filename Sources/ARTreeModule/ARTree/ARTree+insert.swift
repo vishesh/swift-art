@@ -125,8 +125,7 @@ extension ARTreeImpl {
       case .node48: step = _insertStep(Node48<Spec>(buffer: current.buf), key, &depth, &ref)
       case .node256: step = _insertStep(Node256<Spec>(buffer: current.buf), key, &depth, &ref)
       case .leaf: preconditionFailure("leaf handled by loop condition")
-      case .bucketLeaf: preconditionFailure("bucket leaves not yet implemented")
-      }
+        }
 
       switch step {
       case .splitNode(let prefixDiff):
@@ -221,7 +220,6 @@ extension ARTreeImpl {
     case .node48: return Node48<Spec>(buffer: rawNode.buf).partialLength
     case .node256: return Node256<Spec>(buffer: rawNode.buf).partialLength
     case .leaf: preconditionFailure("leaf nodes have no internal prefix")
-    case .bucketLeaf: preconditionFailure("bucket leaves not yet implemented")
     }
   }
 
@@ -233,7 +231,6 @@ extension ARTreeImpl {
     case .node48: return Node48<Spec>(buffer: rawNode.buf).partialBytes
     case .node256: return Node256<Spec>(buffer: rawNode.buf).partialBytes
     case .leaf: preconditionFailure("leaf nodes have no internal prefix")
-    case .bucketLeaf: preconditionFailure("bucket leaves not yet implemented")
     }
   }
 
@@ -258,7 +255,6 @@ extension ARTreeImpl {
       node.partialLength -= prefixDiff + 1
     case .leaf:
       preconditionFailure("leaf nodes have no internal prefix")
-    case .bucketLeaf:
       preconditionFailure("bucket leaves not yet implemented")
     }
   }
@@ -282,7 +278,6 @@ extension ARTreeImpl {
       return node.addChild(forKey: key, node: child)
     case .leaf:
       preconditionFailure("leaf nodes cannot accept children")
-    case .bucketLeaf:
       preconditionFailure("bucket leaves not yet implemented")
     }
   }
