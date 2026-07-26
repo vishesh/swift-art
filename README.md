@@ -54,6 +54,8 @@ for (key, value) in dict {
 swift build
 ```
 
+I wrote this library during pre-AI days and then abandoned. Recently revived with AI to see how far can I go vibing. Presentlty, wont recommend for production.
+
 ### Testing
 
 On macOS, Xcode must be installed and selected as the active developer directory:
